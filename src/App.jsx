@@ -7,6 +7,7 @@ import Transparency,{WinnerFeed} from './Transparency.jsx';
 import './meeting.css';
 import {CartPage} from './CustomerEnhancements.jsx';
 import {AccountPage,TutorialPage} from './ServicePages.jsx';
+import PolicyPages,{policyRoutes} from './PolicyPages.jsx';
 import {
   ArrowRight, Bell, BoxArrowDown, CalendarCheck, CaretDown, CaretRight,
   ChartBar, ChatCircleDots, Check, CircleNotch, Coins, Crown, Cube,
@@ -172,8 +173,9 @@ function SearchModal({ open, onClose, go, boxes=boxProducts }) {
 
 function Toast({ message }) { return message?<div className="toast"><Check/><span>{message}</span></div>:null; }
 
-function Footer({ go }) {
-  return <footer className="site-footer"><div className="shell"><div><AppLogo/><p>열어보는 순간이 가장 재미있는 랜덤박스 플랫폼</p></div><div><b>서비스</b><button onClick={()=>go("boxes")}>랜덤박스</button><button onClick={()=>go("charge")}>포인트 충전</button><button onClick={()=>go("wins")}>언박싱</button><button onClick={()=>go("trust")}>확률 안내</button></div><div><b>이용안내</b><button onClick={()=>go("tutorial")}>이용방법</button><button onClick={()=>go("notices")}>공지사항</button><button onClick={()=>go("events")}>이벤트</button><button onClick={()=>go("support")}>고객지원</button><button onClick={()=>go("terms")}>이용약관</button></div><div><b>고객지원</b><p>평일 10:00–18:00<br/>support@modubox.kr</p></div></div><div className="footer-bottom shell"><span>© 2026 MODU'S BOX. All rights reserved.</span><span>한국어 <CaretDown/></span></div></footer>;
+function Footer({ go,state }) {
+  const seller=state.settings.seller||{};
+  return <footer className="site-footer"><div className="shell"><div><AppLogo/><p>열어보는 순간이 가장 재미있는 랜덤박스 플랫폼</p></div><div><b>서비스</b><button onClick={()=>go("boxes")}>랜덤박스</button><button onClick={()=>go("charge")}>포인트 충전</button><button onClick={()=>go("wins")}>언박싱</button><button onClick={()=>go("trust")}>확률 안내</button></div><div><b>이용안내</b><button onClick={()=>go("tutorial")}>이용방법</button><button onClick={()=>go("notices")}>공지사항</button><button onClick={()=>go("events")}>이벤트</button><button onClick={()=>go("terms")}>이용약관</button><button onClick={()=>go('privacy')}>개인정보 처리방침</button><button onClick={()=>go('refund-policy')}>취소·반품 기준</button></div><div><b>고객지원</b><p>{seller.supportHours||'상담 시간 등록 예정'}<br/>{seller.supportEmail||'고객센터 연락처 등록 예정'}</p><button onClick={()=>go('support')}>고객센터</button><button onClick={()=>go('company')}>사업자 정보</button></div></div><div className="footer-seller shell">상호 {seller.companyName||'등록 예정'} · 대표자 {seller.representative||'등록 예정'} · 사업자등록번호 {seller.businessNumber||'등록 예정'} · 통신판매업 신고번호 {seller.salesNumber||'등록 예정'}<br/>사업장 주소 {seller.businessAddress||'등록 예정'} · 고객센터 전화 {seller.supportPhone||'등록 예정'}</div><div className="footer-bottom shell"><span>© 2026 MODU'S BOX. All rights reserved.</span><span>한국어 <CaretDown/></span></div></footer>;
 }
 
 export function App() {
@@ -198,12 +200,14 @@ export function App() {
   else if(route==='tutorial')page=<TutorialPage state={state} go={go} dispatch={dispatch}/>;
   else if(['subscription','exchange','services'].includes(route))page=<TutorialPage state={state} go={go} dispatch={dispatch}/>;
   else if(route==='boxes')page=<BoxesPage openBox={openBox} boxes={state.boxes} state={state} dispatch={dispatch} notify={toast}/>;
+  else if(policyRoutes.includes(route))page=<PolicyPages key={route} route={route} state={state} dispatch={dispatch} go={go}/>;
   else if(flowRoutes.includes(route))page=<CustomerFlows key={route} route={route==='mypage'?'profile':route} state={state} dispatch={dispatch} go={go} notify={toast}/>;
-  else page=<MeetingExtras key={route} route={route} state={state} dispatch={dispatch} go={go} notify={toast}/>;
+  else if(['notices','events','community','coupons','notifications','trade','gifts','referral','attendance','pointshop'].includes(route))page=<MeetingExtras key={route} route={route} state={state} dispatch={dispatch} go={go} notify={toast}/>;
+  else page=<PolicyPages key={route} route="notfound" state={state} dispatch={dispatch} go={go}/>;
   return <div className={isAdmin?'app admin-mode':'app'}>
     {!isAdmin&&<Header route={route} go={go} state={state} onSearch={()=>setSearchOpen(true)} onMenu={()=>setMenuOpen(true)}/>}
     {page}
-    {!isAdmin&&<Footer go={go}/>}
+    {!isAdmin&&<Footer go={go} state={state}/>}
     <MobileMenu open={menuOpen} onClose={()=>setMenuOpen(false)} go={go}/>
     <SearchModal boxes={state.boxes} open={searchOpen} onClose={()=>setSearchOpen(false)} go={go}/>
     <Toast message={message}/>

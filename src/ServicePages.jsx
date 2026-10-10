@@ -8,10 +8,10 @@ const won=n=>Number(n||0).toLocaleString('ko-KR')+'원';
 const today=()=>new Date(Date.now()+9*3600000).toISOString().slice(0,10);
 const dates=(start,n)=>Array.from({length:n},(_,i)=>new Date(Date.parse(start+'T00:00:00Z')+i*86400000).toISOString().slice(0,10));
 const accountGroups=[
- ['나의 쇼핑',[['inventory','보관함'],['orders','주문·배송'],['refunds','취소·환급'],['cart','장바구니'],['wishlist','관심 박스']]],
+ ['나의 쇼핑',[['inventory','보관함'],['orders','주문·배송'],['refunds','상품 미수령 환급'],['returns','취소·반품 신청'],['receipts','거래 명세'],['cart','장바구니'],['wishlist','관심 박스']]],
  ['포인트·혜택',[['wallet','포인트 내역'],['charge','포인트 충전'],['coupons','내 쿠폰'],['attendance','출석체크'],['referral','친구 초대']]],
  ['나의 활동',[['mywins','나의 언박싱'],['gifts','선물함'],['support','나의 문의'],['community','커뮤니티'],['pointshop','포인트샵']]],
- ['내 정보',[['profile','회원정보 수정'],['notifications','알림'],['terms','약관 및 정책']]],
+ ['내 정보',[['profile','회원정보 수정'],['notifications','알림'],['terms','약관 및 정책'],['rights','개인정보 권리 요청'],['withdrawal','회원 탈퇴 요청']]],
 ];
 export function AccountPage({state,go,dispatch}){
  const name=state.session?.name||'박스러버';

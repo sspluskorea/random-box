@@ -15,6 +15,7 @@ export const tableColumns = {
  faq:['question','category','status'], inquiries:['title','customer','status','createdAt'], coupons:['name','code','amount','limit','start','end','status'], terms:['title','start','status'],
 };
 export const detailLabels = {
+ requestKind:'서비스 요청 유형',policySnapshot:'거래 당시 적용 정책',kind:'정책 유형',version:'정책 버전',consents:'가입 동의 선택 기록',service:'이용약관 선택',privacy:'개인정보 안내 선택',marketing:'혜택 알림 선택',age:'가입 연령 안내 선택',recordedAt:'선택 기록 시각',verification:'검증 상태',publicWins:'당첨 공개 선택',
  id:'기록 번호',total:'총 수량·금액',tiers:'금액대별 당첨 확률',label:'등급',min:'최저 상품 가치',max:'최고 상품 가치',color:'박스 테마 색상',paidNet:'유료 포인트 환급액',bonusNet:'보너스 포인트 환급액',refundMethod:'환급 방식',
  items:'주문 상품',method:'결제 방식',paymentMethod:'결제 방식',orderId:'주문 번호',chargeId:'충전 번호',refundId:'환급 번호',
  memberId:'회원',boxId:'랜덤박스',productId:'상품 번호',inventoryIds:'보관 상품 번호',inventoryId:'보관 상품 번호',
@@ -44,6 +45,8 @@ export function formatAdminValue(key,value,state={},menu='') {
  }
  if(key.endsWith('At')&&Number.isFinite(Date.parse(value)))return new Date(value).toLocaleString('ko-KR');
  if(key==='color')return ({blue:'블루',pink:'핑크',gold:'골드'})[value]||String(value);
+ if(key==='requestKind')return ({returns:'취소·반품',withdrawal:'회원 탈퇴',rights:'개인정보 권리',recovery:'계정 복구'})[value]||String(value);
+ if(key==='kind')return ({service:'이용약관',privacy:'개인정보',points:'포인트',refund:'취소·반품',shipping:'배송',community:'당첨 공개·커뮤니티'})[value]||String(value);
  return ({wallet:'포인트',points:'포인트',original:'원 결제 수단',card:'카드',bank:'계좌이체'})[value]||String(value);
 }
 export function rowDetails(row,primaryColumns){return Object.entries(row).filter(([key])=>!primaryColumns.includes(key));}
