@@ -2,9 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {seedState,transition} from '../src/demoStore.js';
+import {publicOpenings} from '../src/policyModel.js';
 test('핵심 서비스는 부가기능 비활성으로 시작하고 공개 예시를 사용하지 않음',()=>{
  const s=seedState();assert.equal(s.settings.shopEnabled,false);assert.equal(s.settings.tradeEnabled,false);assert.equal(s.settings.winnerFeedShowSamples,false);
- const text=readFileSync(new URL('../src/Transparency.jsx',import.meta.url),'utf8');assert.ok(!text.includes('sample-1'));assert.ok(text.includes('r.inventoryId&&r.orderId'));
+ const text=readFileSync(new URL('../src/Transparency.jsx',import.meta.url),'utf8');assert.ok(!text.includes('sample-1'));assert.ok(text.includes('const visible=publicOpenings'));s.openings=[{id:'no-order',createdAt:'2026-10-10',inventoryId:'i'},{id:'linked',createdAt:'2026-10-10',inventoryId:'i',orderId:'o'}];assert.deepEqual(publicOpenings(s).map(r=>r.id),['linked']);
 });
 test('충전 → 포인트 구매 → 개봉 기록과 상품 연결',()=>{
  let s=seedState();s.wallet={paid:0,bonus:0};
