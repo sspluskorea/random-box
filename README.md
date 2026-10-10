@@ -19,8 +19,8 @@ Node.js 22 이상이 필요합니다.
 ```sh
 npm ci
 npm run dev -- --host 127.0.0.1 --port 4173
-npm test
 npm run build:pages
+npm test
 ```
 
 `src/`에 화면 코드, `tests/`에 테스트, `public/assets/`에 기본 이미지가 있습니다. `src/demoStore.js`는 거래와 상태 변경을 담당합니다. `build:pages`는 `docs/`에 배포 파일을 생성합니다. GitHub Pages는 `main`의 `/docs`를 게시합니다.
