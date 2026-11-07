@@ -6,12 +6,13 @@ const initial=()=>{const s=seedState();s.platform.campaigns=[];return s;};
 const doAction=(s,a,r=()=>0.99)=>{const out=transition(s,a,r);assert.equal(out.ok,true,out.error);return out.state;};
 const rejected=(s,a,r)=>{const before=structuredClone(s);assert.equal(transition(s,a,r).ok,false);assert.deepEqual(s,before,'failed transaction must preserve all original state');};
 
-test('independent: 4천만원에서 B 4회 A 1회 정확히 수령하며 일반 당첨은 회차를 바꾸지 않음',()=>{
+test('independent: 4천만원에서 B 확정보상은 1회 수령 후 0 초기화하며 A는 독립 유지',()=>{
  let s=doAction(initial(),{type:'CHARGE',amount:40000000});
- for(let n=0;n<4;n++)s=doAction(s,{type:'CLAIM_PITY',grade:'B',category:['men','women','appliance','men'][n]});
- assert.equal(memberProgress(s).B.progress,0);assert.equal(memberProgress(s).A.progress,40000000);
+ s=doAction(s,{type:'CLAIM_PITY',grade:'B',category:'men'});
+ assert.equal(memberProgress(s).B.progress,0);assert.equal(memberProgress(s).A.progress,40000000);assert.equal(s.platform.pityClaims[0].consumed,40000000);assert.equal(s.platform.pityClaims[0].threshold,10000000);
+ rejected(s,{type:'CLAIM_PITY',grade:'B',category:'women'});
  s=doAction(s,{type:'PURCHASE',boxId:7,method:'wallet'},()=>0);assert.equal(s.lastResults[0].grade,'A');assert.equal(memberProgress(s).A.available,true);
- s=doAction(s,{type:'CLAIM_PITY',grade:'A',category:'women'});assert.equal(s.platform.pityClaims.length,5);assert.equal(memberProgress(s).A.progress,0);
+ s=doAction(s,{type:'CLAIM_PITY',grade:'A',category:'women'});assert.equal(s.platform.pityClaims.length,2);assert.equal(memberProgress(s).A.progress,0);
  rejected(s,{type:'CLAIM_PITY',grade:'A',category:'women'});rejected(s,{type:'CLAIM_PITY',grade:'B',category:'men'});
 });
 test('independent: 미승인 실패 충전 행은 천장과 이벤트 누적에서 제외',()=>{
@@ -72,4 +73,26 @@ test('independent: 다른 회원 환급 승인은 해당 회원에게 반환하�
 test('independent: 0퍼센트 구성상품 삭제도 박스 참조를 손상시키지 않음',()=>{
  let s=initial();const boxes=structuredClone(s.boxes),b=boxes.find(x=>x.id===7);b.productOdds[0].probability=0;b.productOdds[4].probability=70.5;s=doAction(s,{type:'UPDATE',key:'boxes',value:boxes});
  rejected(s,{type:'UPDATE',key:'products',value:s.products.filter(p=>p.id!=='p1')});
+});
+
+test('independent: 기준 변경 전후 수령 가능 횟수는 최대 1이며 수령 후 0과 새 기준 적용',async()=>{
+ const {availableRewardCount}=await import('../src/rewardDisplayModel.js');
+ for(const nextThreshold of [20000000,5000000]){
+  let s=doAction(initial(),{type:'CHARGE',amount:40000000});s=doAction(s,{type:'PLATFORM_SETTINGS',patch:{pityB:nextThreshold}});
+  assert.equal(memberProgress(s).B.threshold,10000000);assert.equal(availableRewardCount(memberProgress(s).B,s.platform.settings.pityB),1);
+  s=doAction(s,{type:'CLAIM_PITY',grade:'B',category:'men'});assert.equal(memberProgress(s).B.progress,0);assert.equal(memberProgress(s).B.threshold,nextThreshold);assert.equal(availableRewardCount(memberProgress(s).B,s.platform.settings.pityB),0);assert.equal(memberProgress(s).A.progress,40000000);
+  rejected(s,{type:'CLAIM_PITY',grade:'B',category:'men'});
+ }
+});
+test('independent: 환불 후 부족액은 수령 가능 횟수를 만들지 않으며 다음 목표 금액에 포함',async()=>{
+ const {availableRewardCount}=await import('../src/rewardDisplayModel.js');let s=doAction(initial(),{type:'CHARGE',amount:10000000});const chargeId=s.charges[0].id;
+ s=doAction(s,{type:'CLAIM_PITY',grade:'B',category:'men'});s=doAction(s,{type:'REFUND_CHARGE',id:chargeId,amount:1000000});const p=memberProgress(s).B;assert.equal(p.debt,1000000);assert.equal(p.remaining,11000000);assert.equal(availableRewardCount(p,s.platform.settings.pityB),0);
+});
+
+test('independent: 과거 보상 기록은 기존 차감액을 보존하고 새 수령만 전체 게이지 소진',()=>{
+ let s=doAction(initial(),{type:'CHARGE',amount:40000000});s.platform.pityClaims.push({id:'legacy-claim',memberId:'demo-member',grade:'B',threshold:10000000,cycle:1,status:'수령 완료'});
+ assert.equal(memberProgress(s).B.progress,30000000);s=loadState({getItem:()=>JSON.stringify(s)});assert.equal(memberProgress(s).B.progress,30000000);
+ s=doAction(s,{type:'ADMIN_CLAIM_PITY',memberId:'demo-member',grade:'B',category:'women',reason:'회원 요청 확정보상',requestId:'reset-new'});
+ assert.equal(s.platform.pityClaims[0].consumed,30000000);assert.equal(memberProgress(s).B.progress,0);assert.equal(memberProgress(s).A.progress,40000000);
+ rejected(s,{type:'ADMIN_CLAIM_PITY',memberId:'demo-member',grade:'B',category:'women',reason:'중복 요청',requestId:'reset-new'});
 });
