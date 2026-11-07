@@ -8,6 +8,7 @@ import './meeting.css';
 import {CartPage} from './CustomerEnhancements.jsx';
 import {AccountPage,TutorialPage} from './ServicePages.jsx';
 import PolicyPages,{policyRoutes} from './PolicyPages.jsx';
+import RewardsPages,{ProductDetailPage,PityPreview} from './RewardsPages.jsx';
 import {
   ArrowRight, Bell, BoxArrowDown, CalendarCheck, CaretDown, CaretRight,
   ChartBar, ChatCircleDots, Check, CircleNotch, Coins, Crown, Cube,
@@ -101,7 +102,7 @@ function MobileMenu({ open, onClose, go }) {
     <div className="mobile-overlay" role="dialog" aria-modal="true" aria-label="전체 메뉴"><div className="mobile-sheet">
       <div className="mobile-sheet-head"><AppLogo /><button className="icon-button" onClick={onClose}><X /></button></div>
       {userNav.map(([key, label]) => <button key={key} onClick={() => { go(key); onClose(); }}>{label}<ArrowRight /></button>)}
-      {[['events','이벤트'],['community','커뮤니티']].map(([key,label])=><button key={key} onClick={()=>{go(key);onClose();}}>{label}<ArrowRight/></button>)}
+      {[['rewards','천장 보상'],['benefits','누적 결제 혜택'],['events','이벤트'],['community','커뮤니티']].map(([key,label])=><button key={key} onClick={()=>{go(key);onClose();}}>{label}<ArrowRight/></button>)}
       {[['mypage','마이페이지'],['wallet','내 지갑'],['charge','포인트 충전'],['cart','장바구니'],['login','로그인'],['signup','회원가입'],['notices','공지사항'],['support','고객센터'],['terms','약관 및 정책']].map(([key,label])=><button key={key} onClick={()=>{go(key);onClose()}}>{label}<ArrowRight/></button>)}
     </div></div>
   );
@@ -123,6 +124,7 @@ function Home({ go, openBox, boxes=boxProducts, state }) {
         </div>
       </section>
       <WinnerFeed state={state} go={go}/>
+      <div className="shell"><PityPreview state={state} go={go}/></div>
       <section className="popular shell section-block">
         <div className="section-heading"><div><span className="eyebrow">SPECIAL RANDOM BOX</span><h2>지금 주목할 인기 박스</h2></div><button className="text-link" onClick={() => go("boxes")}>전체 보기 <ArrowRight /></button></div>
         <div className="box-showcase">{boxes.slice(0, 3).map((box) => <BoxCard key={box.id} box={box} onOpen={() => openBox(box)} />)}</div>
@@ -150,7 +152,7 @@ function PageShell({ eyebrow, title, description, actions, children }) {
 function BoxesPage({ openBox, boxes=boxProducts, state, dispatch, notify }) {
   const [category, setCategory] = useState("전체");
   const [sort, setSort] = useState("추천순");
-  const filtered = boxes.filter((b) => category === "전체" || b.category === category).sort((a,b)=>sort==='낮은 가격순'?a.price-b.price:sort==='높은 가격순'?b.price-a.price:sort==='마감 임박순'?a.left-b.left:0);
+  const filtered = boxes.filter((b) => category === "전체" || b.category === category).sort((a,b)=>sort==='낮은 가격순'?a.price-b.price:sort==='높은 가격순'?b.price-a.price:sort==='마감 임박순'?a.left-b.left:Number(!!b.productOdds?.length)-Number(!!a.productOdds?.length));
   return (
     <PageShell eyebrow="DROP COLLECTION" title="나에게 맞는 랜덤박스" description="가격, 구성품, 확률을 확인하고 원하는 드롭을 선택하세요.">
       <div className="filter-bar"><div className="chips">{["전체", "테크", "패션", "라이프", "프리미엄"].map((c) => <button className={category === c ? "active" : ""} onClick={() => setCategory(c)} key={c}>{c}</button>)}</div><label className="select-wrap"><SlidersHorizontal /><select value={sort} onChange={(e) => setSort(e.target.value)}><option>추천순</option><option>낮은 가격순</option><option>높은 가격순</option><option>마감 임박순</option></select><CaretDown /></label></div>
@@ -161,14 +163,14 @@ function BoxesPage({ openBox, boxes=boxProducts, state, dispatch, notify }) {
 
 function CatalogCard({ box, onOpen, state, dispatch, notify }) {
   const percent = Math.round((box.left / box.total) * 100);
-  return <article className="catalog-card"><div className="catalog-image"><img src={box.image} alt="" /><span>{box.category}</span><button aria-label={box.name+' 관심 박스'} aria-pressed={(state.content.wishlist||[]).some(r=>r.boxId===box.id)} onClick={()=>{const rows=state.content.wishlist||[];dispatch({type:'UPDATE',key:'content',value:{...state.content,wishlist:rows.some(r=>r.boxId===box.id)?rows.filter(r=>r.boxId!==box.id):[...rows,{boxId:box.id}]}});notify('관심 목록을 변경했습니다.')}}><Heart /></button></div><div className="catalog-content"><h3>{box.name}</h3><p>{box.tiers?.length||4}개 금액대 · 공개 확률 확인 · {box.status}</p><div className="catalog-price"><strong>{won(box.price)}</strong><button disabled={box.status!=='판매 중'||box.left<1} onClick={onOpen}>박스 열기</button><button onClick={()=>{const rows=state.content.cart||[];dispatch({type:'UPDATE',key:'content',value:{...state.content,cart:rows.some(r=>r.boxId===box.id)?rows:[...rows,{boxId:box.id,quantity:1}]}});notify('장바구니에 담았습니다.')}}>담기</button></div><div className="stock-bar"><i style={{ width: `${percent}%` }} /><span>{box.left.toLocaleString()}개 남음</span></div><button className="probability-link" onClick={onOpen}>구성품 및 확률 보기 <ArrowRight /></button></div></article>;
+  return <article className="catalog-card"><div className="catalog-image"><img src={box.image} alt="" /><span>{box.category}</span><button aria-label={box.name+' 관심 박스'} aria-pressed={(state.content.wishlist||[]).some(r=>r.boxId===box.id)} onClick={()=>{const rows=state.content.wishlist||[];dispatch({type:'UPDATE',key:'content',value:{...state.content,wishlist:rows.some(r=>r.boxId===box.id)?rows.filter(r=>r.boxId!==box.id):[...rows,{boxId:box.id}]}});notify('관심 목록을 변경했습니다.')}}><Heart /></button></div><div className="catalog-content"><h3>{box.name}</h3><p>{box.productOdds?.length?'A~E등급 상품별 확률':`${box.tiers?.length||4}개 금액대`} · 공개 확률 확인 · {box.status}</p><div className="catalog-price"><strong>{won(box.price)}</strong><button disabled={box.status!=='판매 중'||box.left<1} onClick={onOpen}>박스 열기</button><button onClick={()=>{const rows=state.content.cart||[];dispatch({type:'UPDATE',key:'content',value:{...state.content,cart:rows.some(r=>r.boxId===box.id)?rows:[...rows,{boxId:box.id,quantity:1}]}});notify('장바구니에 담았습니다.')}}>담기</button></div><div className="stock-bar"><i style={{ width: `${percent}%` }} /><span>{box.left.toLocaleString()}개 남음</span></div><button className="probability-link" onClick={onOpen}>구성품 및 확률 보기 <ArrowRight /></button></div></article>;
 }
 
 function SearchModal({ open, onClose, go, boxes=boxProducts }) {
   const [query,setQuery]=useState("");
   if(!open)return null;
   const results=boxes.filter((b)=>b.name.includes(query)||b.category.includes(query));
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="search-modal" onMouseDown={(e)=>e.stopPropagation()}><div className="search-box"><MagnifyingGlass/><input autoFocus value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="박스, 상품, 게시글 검색"/><button onClick={onClose}><X/></button></div>{query?<div className="search-results"><span>검색 결과 {results.length}건</span>{results.map((b)=><button key={b.id} onClick={()=>{go("boxes");onClose();}}><img src={b.image} alt=""/><div><b>{b.name}</b><small>{b.category} · {won(b.price)}</small></div><ArrowRight/></button>)}</div>:<div className="search-suggestions"><span>추천 검색어</span>{["마스터 박스","무선 이어폰","상품 구성","무료배송","랜덤박스"].map((v)=><button key={v} onClick={()=>setQuery(v)}>{v}</button>)}</div>}</div></div>;
+  return <div className="modal-backdrop" onMouseDown={onClose}><div className="search-modal" onMouseDown={(e)=>e.stopPropagation()}><div className="search-box"><MagnifyingGlass/><input autoFocus value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="박스 이름 또는 카테고리 검색"/><button onClick={onClose}><X/></button></div>{query?<div className="search-results"><span>검색 결과 {results.length}건</span>{results.map((b)=><button key={b.id} onClick={()=>{go("boxes");onClose();}}><img src={b.image} alt=""/><div><b>{b.name}</b><small>{b.category} · {won(b.price)}</small></div><ArrowRight/></button>)}</div>:<div className="search-suggestions"><span>추천 검색어</span>{["마스터","테크","패션","라이프","프리미엄"].map((v)=><button key={v} onClick={()=>setQuery(v)}>{v}</button>)}</div>}</div></div>;
 }
 
 function Toast({ message }) { return message?<div className="toast"><Check/><span>{message}</span></div>:null; }
@@ -188,15 +190,18 @@ export function App() {
   const toast=(text)=>{setMessage(text);clearTimeout(window.__moduToast);window.__moduToast=setTimeout(()=>setMessage(''),3200)};
   const dispatch=(action)=>{const result=transition(stateRef.current,action);if(result.ok){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(result.state))}catch{const error='저장 공간이 부족합니다. 등록할 이미지 수나 크기를 줄여 주세요.';toast(error);return {ok:false,error};}stateRef.current=result.state;setState(result.state);}else toast(result.error);return result};
   useEffect(()=>{const sync=e=>{if(e.key===STORAGE_KEY){const next=loadState(localStorage);stateRef.current=next;setState(next)}};window.addEventListener('storage',sync);return()=>window.removeEventListener('storage',sync)},[]);
+  useEffect(()=>{const process=()=>{if(document.visibilityState!=='hidden')dispatch({type:'PROCESS_DUE'})};process();window.addEventListener('focus',process);const timer=setInterval(process,60000);return()=>{window.removeEventListener('focus',process);clearInterval(timer)}},[]);
   const openBox=box=>{dispatch({type:'UPDATE',key:'selectedBoxId',value:box.id});dispatch({type:'UPDATE',key:'checkoutQuantity',value:1});go('checkout')};
   const isAdmin=route.startsWith('admin');
   const flowRoutes=['login','signup','charge','wallet','checkout','open','inventory','refunds','orders','profile','support'];
   let page;
   if(isAdmin)page=<AdminConsole state={state} dispatch={dispatch} go={go} notify={toast}/>;
-  else if(route==='home')page=<Home state={state} go={go} openBox={openBox} boxes={state.boxes.filter(b=>b.status==='판매 중')}/>;
+  else if(route==='home')page=<Home state={state} go={go} openBox={openBox} boxes={state.boxes.filter(b=>b.status==='판매 중').sort((a,b)=>Number(!!b.productOdds?.length)-Number(!!a.productOdds?.length))}/>;
   else if(['cart','wishlist'].includes(route))page=<CartPage state={state} dispatch={dispatch} go={go} notify={toast} wishlist={route==='wishlist'}/>;
   else if(['wins','mywins','trust','ranking'].includes(route))page=<Transparency state={state} go={go} dispatch={dispatch} ranking={route==='ranking'} trust={route==='trust'} personal={route==='mywins'}/>;
   else if(route==='mypage')page=<AccountPage state={state} go={go} dispatch={dispatch}/>;
+  else if(['rewards','benefits','cash','attendance','referral','notifications'].includes(route))page=<RewardsPages key={route} route={route} state={state} dispatch={dispatch} go={go} notify={toast}/>;
+  else if(route.startsWith('product/'))page=<ProductDetailPage key={route} id={decodeURIComponent(route.slice(8))} state={state} go={go}/>;
   else if(route==='tutorial')page=<TutorialPage state={state} go={go} dispatch={dispatch}/>;
   else if(['subscription','exchange','services'].includes(route))page=<TutorialPage state={state} go={go} dispatch={dispatch}/>;
   else if(route==='boxes')page=<BoxesPage openBox={openBox} boxes={state.boxes} state={state} dispatch={dispatch} notify={toast}/>;

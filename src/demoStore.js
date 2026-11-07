@@ -1,12 +1,14 @@
 import {seedContent} from './seedContent.js';
 import {mergePolicyDefaults,policySnapshot,sellerFields,validPolicyRows} from './policyModel.js';
+import {ensurePlatform,afterPlatformAction,platformAction,platformPurchase,validProductOdds,cashValue} from './platformModel.js';
+import {couponAvailable,couponDiscount,useCoupon} from './couponModel.js';
 export const STORAGE_KEY = 'modu-meeting-v2';
 const stamp = () => new Date().toISOString();
 const id = () => globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
 const entry = (data) => ({id:id(),createdAt:stamp(),...data});
 const validMoney = value => Number.isSafeInteger(Number(value)) && Number(value)>=0;
 const validRate = value => Number.isFinite(Number(value)) && Number(value)>=0 && Number(value)<=100;
-const conversionDefaults={conversionPercent:70,restoreWindowHours:24,restoreDailyLimit:5,shopEnabled:false,tradeEnabled:false,winnerFeedShowSamples:false};
+const conversionDefaults={conversionPercent:60,restoreWindowHours:24,restoreDailyLimit:5,shopEnabled:false,tradeEnabled:false,winnerFeedShowSamples:false};
 export const kstDate=(time=Date.now())=>new Date(new Date(time).getTime()+9*3600000).toISOString().slice(0,10);
 const addDays=(date,days)=>new Date(Date.parse(date+'T00:00:00Z')+days*86400000).toISOString().slice(0,10);
 const defaultPassPlans=()=>[{id:'nebula-pass',name:'네뷸라 30일 패스',boxId:1,price:9900,days:30,dailyReward:300,streakDays:6,streakReward:1000,makeupCostPercent:50,renewBeforeDays:7,status:'판매 중'}];
@@ -18,7 +20,7 @@ function migrateMemberNames(state){
   state.content={...state.content,passPlans:state.content?.passPlans||defaultPassPlans()};
   state.content.terms=mergePolicyDefaults(state.content.terms);
   for(const key of ['notices','terms','events'])state.content[key]=(state.content[key]||[]).map(row=>{const original=seedContent[key]?.find(r=>r.id===row.id);return original&&/미팅|시연/.test(JSON.stringify(row))?structuredClone(original):row;});
-  return state;
+  return ensurePlatform(state);
 }
 function validTiers(tiers) {
   if(!Array.isArray(tiers)||!tiers.length||Math.abs(tiers.reduce((sum,t)=>sum+Number(t.probability),0)-100)>0.00001)return false;
@@ -29,20 +31,22 @@ function validTiers(tiers) {
 export function seedState() {
   const names=['네뷸라 스타터 박스','스트리트 컬렉션 박스','라이프 스타일 박스','크리에이터 드림 박스','시그니처 럭셔리 박스','갤럭시 마스터 박스'];
   const prices=[9900,19900,29900,49900,79900,99900];
-  return {version:2,session:null,selectedBoxId:1,checkoutQuantity:1,wallet:{paid:100000,bonus:3000},
+  return ensurePlatform({version:2,session:null,selectedBoxId:1,checkoutQuantity:1,wallet:{paid:100000,bonus:3000},
     settings:{...conversionDefaults,refundFeePercent:10,refundApprovalRequired:false,shippingFee:3000,chargeOptions:[10000,30000,50000,100000,300000],bonusPercent:3},
     boxes:names.map((name,i)=>({id:i+1,name,price:prices[i],category:['테크','패션','라이프','테크','프리미엄','프리미엄'][i],image:`assets/box-${['tech','fashion','life'][i%3]}.png`,status:'판매 중',left:200-i*27,total:500,color:['blue','pink','gold'][i%3],tiers:[{id:'S',label:'S',min:500000,max:1000000,probability:0.5},{id:'A',label:'A',min:100000,max:499999,probability:4.5},{id:'B',label:'B',min:30000,max:99999,probability:15},{id:'C',label:'C',min:1000,max:29999,probability:80}]})),
     products:[{id:'p1',name:'프리미엄 노트북',value:899000,stock:20,category:'테크'},{id:'p2',name:'무선 노이즈캔슬링 헤드폰',value:189000,stock:90,category:'테크'},{id:'p3',name:'프리미엄 스니커즈',value:129000,stock:70,category:'패션'},{id:'p4',name:'무드 테이블 램프',value:79000,stock:80,category:'라이프'},{id:'p5',name:'모바일 상품권 1만원',value:10000,stock:1000,category:'상품권'}],
     members:[{id:'demo-member',name:'박스러버',email:'demo@example.com',status:'정상',points:103000}],
     inventory:[{id:'sample-item',name:'무선 노이즈캔슬링 헤드폰',value:189000,purchasePrice:189000,paymentMethod:'card',memberId:'demo-member',grade:'A',status:'보관 중',boxId:1,image:'assets/box-tech.png',createdAt:stamp()}],
-    conversions:[],charges:[],openings:[],lastResults:[],refunds:[],orders:[],ledger:[],logs:[],content:{...structuredClone(seedContent),terms:mergePolicyDefaults(seedContent.terms),passPlans:defaultPassPlans(),coupons:[{id:'welcome',name:'웰컴 쿠폰',value:'10%',status:'사용 가능'}],inquiries:[],posts:[],trades:[],notifications:[],attendance:[],gifts:[],subscriptions:[]}};
+    conversions:[],charges:[],openings:[],lastResults:[],refunds:[],orders:[],ledger:[],logs:[],content:{...structuredClone(seedContent),terms:mergePolicyDefaults(seedContent.terms),passPlans:defaultPassPlans(),coupons:[{id:'welcome',name:'웰컴 쿠폰',value:'10%',status:'사용 가능'}],inquiries:[],posts:[],trades:[],notifications:[],attendance:[],gifts:[],subscriptions:[]}});
 }
 export function loadState(storage) {try {const value=JSON.parse(storage.getItem(STORAGE_KEY));if(value?.version!==2||!value.wallet||!validMoney(value.wallet.paid)||!validMoney(value.wallet.bonus)||!['boxes','products','members','inventory','charges','openings','orders','refunds','ledger','logs'].every(k=>Array.isArray(value[k])))return seedState();return migrateMemberNames({...value,conversions:value.conversions||[],settings:{...conversionDefaults,...value.settings},content:{...structuredClone(seedContent),...value.content}})}catch{return seedState()}}
 const fail = error => ({ok:false,error});
 export function transition(previous, action, random=Math.random) {
   let s=migrateMemberNames(structuredClone(previous)); const a=action; const memberId=s.session?.id||'demo-member';s.conversions||=[];s.settings={...conversionDefaults,...s.settings};
   const ledger=(type,amount)=>s.ledger.unshift(entry({type,amount,memberId}));
-  const finish=()=>{if(!validMoney(s.wallet.paid)||!validMoney(s.wallet.bonus)||!Number.isSafeInteger(s.wallet.paid+s.wallet.bonus))return fail('지갑 금액이 유효한 범위를 벗어났습니다.');s.members=s.members.map(m=>m.id===memberId?{...m,points:s.wallet.paid+s.wallet.bonus}:m);s.logs.unshift(entry({action:a.type,memberId}));return {ok:true,state:s}};
+  if(a.requestId&&s.platform.requests.some(r=>r.id===a.requestId))return fail('이미 처리한 요청입니다.');
+  const finish=()=>{try{afterPlatformAction(s,a,previous);}catch(error){return fail(error.message);}if(!validMoney(s.wallet.paid)||!validMoney(s.wallet.bonus)||!validMoney(s.wallet.cash)||!Number.isSafeInteger(s.wallet.paid+s.wallet.bonus+s.wallet.cash))return fail('지갑 금액이 유효한 범위를 벗어났습니다.');s.members=s.members.map(m=>m.id===memberId?{...m,points:s.wallet.paid+s.wallet.bonus,cash:s.wallet.cash}:m);s.logs.unshift(entry({action:a.type,memberId}));return {ok:true,state:s}};
+  try{const handled=['PURCHASE','USE_BOX_TICKET'].includes(a.type)?platformPurchase(s,a,random):platformAction(s,a,random);if(handled?.error)return fail(handled.error);if(handled?.handled){if(['PURCHASE','USE_BOX_TICKET'].includes(a.type))s.orders[0].policySnapshot=policySnapshot(s);return finish();}}catch(error){return fail(error.message);}
   if(['EXCHANGE_REQUEST','UPDATE_EXCHANGE','ACCEPT_EXCHANGE','PAY_EXCHANGE'].includes(a.type)){
     s.content.exchangeRequests||=[];
     if(a.type==='EXCHANGE_REQUEST'){
@@ -116,15 +120,17 @@ export function transition(previous, action, random=Math.random) {
   if(a.type==='IMPORT_STATE'){
     const v=a.value;
     if(!v||v.version!==2||!v.wallet||!validMoney(v.wallet.paid)||!validMoney(v.wallet.bonus)||!['boxes','products','members','inventory','charges','openings','orders','refunds','ledger','logs'].every(k=>Array.isArray(v[k]))||!v.content||!v.settings)return fail('올바른 백업 파일이 아닙니다.');
-    if(v.boxes.some(b=>!validMoney(b.price)||+b.price<=0||!validMoney(b.left)||!validTiers(b.tiers))||v.products.some(p=>!validMoney(p.stock)||!validMoney(p.value)))return fail('백업의 가격·재고·확률 정보가 올바르지 않습니다.');
+    if(v.boxes.some(b=>!validMoney(b.price)||+b.price<=0||!validMoney(b.left)||(b.productOdds?.length?!validProductOdds(v,b):!validTiers(b.tiers)))||v.products.some(p=>!validMoney(p.stock)||!validMoney(p.value)))return fail('백업의 가격·재고·확률 정보가 올바르지 않습니다.');
     s=structuredClone(v);s.conversions||=[];s.settings={...conversionDefaults,...s.settings};return finish();
   }
   if(a.type==='UPDATE'){
     if(a.key==='content'&&a.value?.terms&&!validPolicyRows(a.value.terms))return fail('정책 유형, 제목, 본문과 실제 시행일(YYYY-MM-DD)을 확인해 주세요.');
     if(a.key==='content'&&a.value?.passPlans&&(!Array.isArray(a.value.passPlans)||a.value.passPlans.some(p=>!validPass(p)||!s.boxes.some(b=>String(b.id)===String(p.boxId)))))return fail('패스 기간·금액·보상·연결 박스 설정을 확인해 주세요.');
     if(!['boxes','products','members','inventory','orders','logs','content','selectedBoxId','checkoutQuantity'].includes(a.key))return fail('전용 거래 기능으로 변경해 주세요.');
-    if(a.key==='boxes'&&(!Array.isArray(a.value)||a.value.some(b=>!validMoney(b.price)||Number(b.price)<=0||!validMoney(b.left)||!validTiers(b.tiers))))return fail('박스 가격·재고·확률 합계와 겹치는 금액 구간을 확인해 주세요.');
-    if(a.key==='products'&&(!Array.isArray(a.value)||a.value.some(p=>!validMoney(p.value)||Number(p.value)<=0||!validMoney(p.stock))))return fail('상품 금액과 재고는 올바른 정수로 입력해 주세요.');
+    if(a.key==='boxes'&&(!Array.isArray(a.value)||a.value.some(b=>!validMoney(b.price)||Number(b.price)<=0||!validMoney(b.left)||(b.productOdds?.length?!validProductOdds(s,b):!validTiers(b.tiers)))))return fail('박스 가격·재고·상품별 확률 합계를 확인해 주세요.');
+    if(a.key==='products'&&(!Array.isArray(a.value)||a.value.some(p=>!validMoney(p.value)||Number(p.value)<=0||!validMoney(p.stock)||(p.grade&&!['A','B','C','D','E'].includes(p.grade))||(p.cashAmount!==''&&p.cashAmount!=null&&!validMoney(p.cashAmount)))))return fail('상품 등급·금액·재고·전환액을 확인해 주세요.');
+    if(a.key==='products'&&s.boxes.some(b=>b.productOdds?.some(o=>!a.value.some(p=>p.id===o.productId&&!p.rewardOnly))))return fail('박스 확률에 연결된 상품은 구성에서 제외한 뒤 삭제해 주세요.');
+    if(a.key==='boxes')for(const box of a.value){const old=s.boxes.find(b=>String(b.id)===String(box.id));if(JSON.stringify(old?.productOdds||old?.tiers)!==JSON.stringify(box.productOdds||box.tiers))s.platform.probabilityHistory.unshift(entry({boxId:box.id,boxName:box.name,actor:'관리자',before:structuredClone(old?.productOdds||old?.tiers||[]),after:structuredClone(box.productOdds||box.tiers||[])}));}
     s[a.key]=structuredClone(a.value);return finish();
   }
   if(a.type==='SETTINGS'){const patch={...(a.patch||{})};if(patch.seller){if(typeof patch.seller!=='object'||Array.isArray(patch.seller)||Object.entries(patch.seller).some(([k,v])=>!Object.hasOwn(sellerFields,k)||typeof v!=='string'||v.length>500))return fail('사업자 안내 입력을 확인해 주세요.');}for(const key of ['refundFeePercent','bonusPercent','conversionPercent'])if(patch[key]!=null){if(!validRate(patch[key]))return fail('비율은 0~100%로 입력해 주세요.');patch[key]=Number(patch[key]);}for(const key of ['shippingFee','freeShippingThreshold','restoreWindowHours','restoreDailyLimit'])if(patch[key]!=null){if(!validMoney(patch[key]))return fail('금액과 제한은 0 이상의 정수로 입력해 주세요.');patch[key]=Number(patch[key]);}if(patch.chargeOptions){if(!Array.isArray(patch.chargeOptions)||!patch.chargeOptions.length||patch.chargeOptions.some(v=>!validMoney(v)||+v<=0))return fail('충전 금액은 0보다 큰 정수여야 합니다.');patch.chargeOptions=patch.chargeOptions.map(Number);}s.settings={...s.settings,...patch};return finish()}
@@ -149,30 +155,30 @@ export function transition(previous, action, random=Math.random) {
     if(!Number.isFinite(Number(box.left))||box.left<quantity)return fail('박스 잔여 수량이 부족합니다.');
     const tiers=box.tiers||[];if(!validTiers(tiers)||!validMoney(box.price)||+box.price<=0)return fail('박스 가격과 확률 설정을 확인해 주세요.');
     if(!['wallet','card'].includes(a.method))return fail('결제 수단을 선택해 주세요.');
-    const candidatesFor=t=>s.products.filter(p=>validMoney(p.stock)&&p.stock>0&&validMoney(p.value)&&p.value>=Number(t.min)&&p.value<=Number(t.max));
+    const candidatesFor=t=>s.products.filter(p=>!p.rewardOnly&&!['비활성','판매 중지'].includes(p.status)&&validMoney(p.stock)&&p.stock>0&&validMoney(p.value)&&p.value>=Number(t.min)&&p.value<=Number(t.max));
     if(tiers.some(t=>Number(t.probability)>0&&candidatesFor(t).reduce((sum,p)=>sum+Number(p.stock),0)<quantity))return fail('확률 구간의 상품 재고가 부족합니다. 상품 재고를 보충한 후 개봉해 주세요.');
-    let total=Number(box.price)*quantity,discount=0;
-    if(a.couponId){const coupon=(s.content.coupons||[]).find(c=>c.id===a.couponId);const expiry=coupon?.expiresAt||coupon?.endDate;const starts=coupon?.startsAt||coupon?.startDate;const raw=String(coupon?.value??coupon?.amount??'');const value=Number(raw.replace('%',''));if(!coupon||coupon.status!=='사용 가능'||coupon.usedAt||(expiry&&new Date(expiry).getTime()<Date.now())||(starts&&new Date(starts).getTime()>Date.now())||!Number.isFinite(value)||value<=0||Number(coupon.minAmount||0)>total)return fail('사용 가능한 쿠폰을 선택해 주세요.');discount=Math.min(total,coupon.type==='percent'||raw.includes('%')?Math.floor(total*Math.min(value,100)/100):Math.floor(value));coupon.status='사용 완료';coupon.usedAt=stamp();coupon.usedBy=memberId;total-=discount;}
+    let total=Number(box.price)*quantity,discount=0,coupon;
+    if(a.couponId){coupon=(s.content.coupons||[]).find(c=>c.id===a.couponId);if(!couponAvailable(coupon,memberId,Date.now(),total))return fail('사용 가능한 쿠폰을 선택해 주세요.');discount=couponDiscount(coupon,total);if(!Number.isFinite(discount)||discount<=0)return fail('쿠폰 할인 금액을 확인해 주세요.');total-=discount;}
     if(!validMoney(total))return fail('결제 금액을 확인해 주세요.');
     let bonusUsed=0;if(a.method==='wallet'){if(s.wallet.paid+s.wallet.bonus<total)return fail('포인트가 부족합니다. 충전 후 이용해 주세요.');bonusUsed=Math.min(s.wallet.bonus,total);s.wallet.bonus-=bonusUsed;s.wallet.paid-=total-bonusUsed;ledger('박스 구매',-total)}
-    const orderId=id();let remainingBonus=bonusUsed;const results=[];
-    for(let i=0;i<quantity;i++){const draw=random();if(!Number.isFinite(draw)||draw<0||draw>=1)return fail('추첨 값을 확인해 주세요.');let n=draw*100;const tier=tiers.find(t=>(n-=Number(t.probability))<0);if(!tier)return fail('확률 설정을 확인해 주세요.');const candidates=candidatesFor(tier),pick=random();if(!Number.isFinite(pick)||pick<0||pick>=1)return fail('추첨 값을 확인해 주세요.');const product=candidates[Math.floor(pick*candidates.length)];if(!product)return fail('당첨 상품 재고가 부족합니다.');product.stock--;const value=Number(product.value),purchasePrice=Math.floor(total/quantity)+(i<total%quantity?1:0),itemBonus=Math.min(remainingBonus,purchasePrice);remainingBonus-=itemBonus;const item=entry({name:product.name,productId:product.id,value,purchasePrice,paymentMethod:a.method,paidUsed:a.method==='wallet'?purchasePrice-itemBonus:0,bonusUsed:itemBonus,orderId,grade:tier.label,status:'보관 중',boxId:box.id,image:product.image||box.image,memberId});results.push(item);s.openings.unshift(entry({inventoryId:item.id,orderId,productId:product.id,boxId:box.id,boxName:box.name,price:box.price,productName:item.name,value,grade:item.grade,memberId,memberName:s.session?.name||'박스러버',probability:Number(tier.probability),probabilitySnapshot:structuredClone(tiers),source:'개봉 기록'}));}
+    const orderId=id();if(coupon)useCoupon(coupon,memberId,orderId);let remainingBonus=bonusUsed;const results=[];
+    for(let i=0;i<quantity;i++){const draw=random();if(!Number.isFinite(draw)||draw<0||draw>=1)return fail('추첨 값을 확인해 주세요.');let n=draw*100;const tier=tiers.find(t=>(n-=Number(t.probability))<0);if(!tier)return fail('확률 설정을 확인해 주세요.');const candidates=candidatesFor(tier),pick=random();if(!Number.isFinite(pick)||pick<0||pick>=1)return fail('추첨 값을 확인해 주세요.');const product=candidates[Math.floor(pick*candidates.length)];if(!product)return fail('당첨 상품 재고가 부족합니다.');product.stock--;const value=Number(product.value),purchasePrice=Math.floor(total/quantity)+(i<total%quantity?1:0),itemBonus=Math.min(remainingBonus,purchasePrice);remainingBonus-=itemBonus;const item=entry({name:product.name,productId:product.id,value,purchasePrice,paymentMethod:a.method,paidUsed:a.method==='wallet'?purchasePrice-itemBonus:0,bonusUsed:itemBonus,orderId,grade:product.grade||tier.label,status:'보관 중',boxId:box.id,image:product.image||box.image,memberId});results.push(item);s.openings.unshift(entry({inventoryId:item.id,orderId,productId:product.id,boxId:box.id,boxName:box.name,price:box.price,productName:item.name,value,grade:item.grade,memberId,memberName:s.session?.name||'박스러버',probability:Number(tier.probability),probabilitySnapshot:structuredClone(tiers),source:'개봉 기록'}));}
     box.left-=quantity;s.inventory.unshift(...results);s.lastResults=results;s.orders.unshift(entry({id:orderId,items:[`${box.name} × ${quantity}`],inventoryIds:results.map(i=>i.id),total,discount,couponId:a.couponId||null,status:'개봉 완료',method:a.method,memberId,address:'디지털 개봉',policySnapshot:policySnapshot(s)}));return finish();
   }
   if(a.type==='REFUND'){
-    const item=s.inventory.find(i=>String(i.id)===String(a.inventoryId));if(!item||item.status!=='보관 중'||(item.memberId&&item.memberId!==memberId))return fail('본인 보관 상품만 환불할 수 있습니다.');
-    const refundMethod=a.refundMethod||'points';if(!['points','original'].includes(refundMethod))return fail('환급 수단을 확인해 주세요.');
+    const item=s.inventory.find(i=>String(i.id)===String(a.inventoryId));if(!item||item.status!=='보관 중'||(item.expiresAt&&Date.parse(item.expiresAt)<=Date.now())||(item.memberId&&item.memberId!==memberId))return fail('본인 보관 상품만 환불할 수 있습니다.');
+    if(item.paymentMethod==='reward')return fail('보상 상품은 배송 또는 상품 전환을 선택해 주세요.');const refundMethod=item.paymentMethod==='cash'?'cash':a.refundMethod||'points';if(!['points','original','cash'].includes(refundMethod))return fail('환급 수단을 확인해 주세요.');
     if(refundMethod==='original'&&(item.paymentMethod!=='card'||!validMoney(item.purchasePrice)))return fail('원결제 내역이 확인되는 카드 구매 상품만 원결제 환불할 수 있습니다.');
     const gross=Number(item.purchasePrice??item.value);if(!validMoney(gross)||!validRate(s.settings.refundFeePercent))return fail('환불 기준가와 수수료를 확인해 주세요.');
     const fee=Math.round(gross*Number(s.settings.refundFeePercent)/100),net=gross-fee;
     const bonusNet=item.paymentMethod==='wallet'?Math.min(net,Math.round(net*Number(item.bonusUsed||0)/Math.max(gross,1))):0,paidNet=net-bonusNet;
-    const pending=!!s.settings.refundApprovalRequired;item.status=pending?'환불 대기':'환불 완료';s.refunds.unshift(entry({inventoryId:item.id,orderId:item.orderId,productName:item.name,gross,fee,net,paidNet,bonusNet,status:pending?'승인 대기':'환불 완료',memberId,feePercent:s.settings.refundFeePercent,refundMethod,policySnapshot:policySnapshot(s)}));if(!pending&&refundMethod==='points'){s.wallet.paid+=paidNet;s.wallet.bonus+=bonusNet;ledger('상품 미수령 환불',net)}return finish();
+    const pending=!!s.settings.refundApprovalRequired;item.status=pending?'환불 대기':'환불 완료';s.refunds.unshift(entry({inventoryId:item.id,orderId:item.orderId,productName:item.name,gross,fee,net,paidNet,bonusNet,status:pending?'승인 대기':'환불 완료',memberId,feePercent:s.settings.refundFeePercent,refundMethod,policySnapshot:policySnapshot(s)}));if(!pending&&refundMethod==='points'){s.wallet.paid+=paidNet;s.wallet.bonus+=bonusNet;ledger('상품 미수령 환불',net)}if(!pending&&refundMethod==='cash'){s.wallet.cash+=net;s.ledger.unshift(entry({memberId,type:'상품 미수령 캐시 환급',amount:net,balanceType:'cash'}));}return finish();
   }
   if(a.type==='CONVERT_ITEM'){
-    const item=s.inventory.find(i=>i.id===a.inventoryId);if(!item||item.status!=='보관 중'||(item.memberId&&item.memberId!==memberId))return fail('본인 보관 상품만 포인트로 전환할 수 있습니다.');
+    const item=s.inventory.find(i=>i.id===a.inventoryId);if(!item||item.status!=='보관 중'||(item.expiresAt&&Date.parse(item.expiresAt)<=Date.now())||(item.memberId&&item.memberId!==memberId))return fail('본인 보관 상품만 포인트로 전환할 수 있습니다.');
     if(!validMoney(item.value)||!validRate(s.settings.conversionPercent))return fail('상품 기준가와 전환율을 확인해 주세요.');
-    const amount=Math.floor(Number(item.value)*Number(s.settings.conversionPercent)/100);if(amount<=0)return fail('전환할 포인트가 없습니다.');
-    const record=entry({inventoryId:item.id,memberId,productName:item.name,amount,conversionPercent:s.settings.conversionPercent,status:'전환 완료',restorableUntil:new Date(Date.now()+Number(s.settings.restoreWindowHours)*3600000).toISOString()});
+    const amount=cashValue(s,item);if(amount<=0)return fail('전환할 포인트가 없습니다.');
+    const record=entry({inventoryId:item.id,memberId,productName:item.name,amount,conversionPercent:item.conversionPercentSnapshot??s.platform.settings.cashPercent,status:'전환 완료',restorableUntil:new Date(Date.now()+Number(s.settings.restoreWindowHours)*3600000).toISOString()});
     s.conversions.unshift(record);item.status='포인트 전환';item.conversionId=record.id;s.wallet.bonus+=amount;ledger('상품 포인트 전환',amount);return finish();
   }
   if(a.type==='RESTORE_ITEM'){
@@ -184,11 +190,25 @@ export function transition(previous, action, random=Math.random) {
     if(s.wallet.bonus<record.amount)return fail('전환 포인트가 사용되어 복구할 수 없습니다.');
     s.wallet.bonus-=record.amount;record.status='복구 완료';record.restoredAt=stamp();item.status='보관 중';delete item.conversionId;ledger('전환 상품 복구',-record.amount);return finish();
   }
-  if(a.type==='SHIP'){const ids=new Set(a.ids||[]),items=s.inventory.filter(i=>ids.has(i.id));if(!items.length||items.length!==ids.size||items.some(i=>i.status!=='보관 중'||(i.memberId&&i.memberId!==memberId)))return fail('본인 보관 상품을 선택해 주세요.');items.forEach(i=>i.status='배송 요청');s.orders.unshift(entry({items:items.map(i=>i.name),inventoryIds:items.map(i=>i.id),total:Number(s.settings.freeShippingThreshold)>0&&items.reduce((sum,i)=>sum+Number(i.value),0)>=Number(s.settings.freeShippingThreshold)?0:Number(s.settings.shippingFee),status:'배송 요청',address:a.address||'기본 배송지',memberId,policySnapshot:policySnapshot(s)}));return finish()}
-  if(a.type==='APPROVE_REFUND'){const refund=s.refunds.find(r=>r.id===a.id);if(!refund||refund.status!=='승인 대기')return fail('이미 처리된 환불입니다.');const item=s.inventory.find(i=>i.id===refund.inventoryId);if(!item||item.status!=='환불 대기'||!validMoney(refund.net))return fail('환불 상품과 금액을 확인해 주세요.');refund.status='환불 완료';item.status='환불 완료';if(refund.refundMethod!=='original'){s.wallet.paid+=refund.paidNet??refund.net;s.wallet.bonus+=refund.bonusNet||0;ledger('관리자 환불 승인',refund.net);}return finish()}
+  if(a.type==='SHIP'){const ids=new Set(a.ids||[]),items=s.inventory.filter(i=>ids.has(i.id));if(!items.length||items.length!==ids.size||items.some(i=>i.status!=='보관 중'||(i.expiresAt&&Date.parse(i.expiresAt)<=Date.now())||(i.memberId&&i.memberId!==memberId)))return fail('본인 보관 상품을 선택해 주세요.');items.forEach(i=>i.status='배송 요청');s.orders.unshift(entry({items:items.map(i=>i.name),inventoryIds:items.map(i=>i.id),total:Number(s.settings.freeShippingThreshold)>0&&items.reduce((sum,i)=>sum+Number(i.value),0)>=Number(s.settings.freeShippingThreshold)?0:Number(s.settings.shippingFee),status:'배송 요청',address:a.address||'기본 배송지',memberId,policySnapshot:policySnapshot(s)}));return finish()}
+  if(a.type==='APPROVE_REFUND'){
+    const refund=s.refunds.find(r=>r.id===a.id);if(!refund||refund.status!=='승인 대기')return fail('이미 처리된 환불입니다.');
+    const targetId=refund.memberId||'demo-member',member=s.members.find(m=>m.id===targetId),item=s.inventory.find(i=>i.id===refund.inventoryId);
+    if(!member||!item||item.status!=='환불 대기'||(item.memberId||targetId)!==targetId||!validMoney(refund.net))return fail('환불 대상 회원·상품·금액을 확인해 주세요.');
+    const wallet=targetId===memberId?s.wallet:(member.wallet||={paid:Number(member.points||0),bonus:0,cash:Number(member.cash||0)});
+    const paid=Number(refund.paidNet??refund.net),bonus=Number(refund.bonusNet||0),net=Number(refund.net);
+    if(!validMoney(paid)||!validMoney(bonus)||paid+bonus!==net)return fail('환급 금액 배분이 올바르지 않습니다.');
+    if(refund.refundMethod==='cash')wallet.cash=Number(wallet.cash||0)+net;
+    else if(refund.refundMethod!=='original'){wallet.paid+=paid;wallet.bonus+=bonus;}
+    if(![wallet.paid,wallet.bonus,wallet.cash].every(validMoney)||!Number.isSafeInteger(wallet.paid+wallet.bonus+wallet.cash))return fail('환급 후 잔액을 확인해 주세요.');
+    if(targetId!==memberId){member.points=wallet.paid+wallet.bonus;member.cash=wallet.cash;}
+    refund.status='환불 완료';item.status='환불 완료';
+    if(refund.refundMethod!=='original')s.ledger.unshift(entry({memberId:targetId,type:refund.refundMethod==='cash'?'관리자 캐시 환급 승인':'관리자 환불 승인',amount:net,balanceType:refund.refundMethod==='cash'?'cash':'points',refundId:refund.id}));
+    return finish();
+  }
   if(a.type==='REJECT_REFUND'){const refund=s.refunds.find(r=>r.id===a.id);if(!refund||refund.status!=='승인 대기')return fail('대기 중인 환불만 반려할 수 있습니다.');refund.status='반려';refund.reason=a.reason||'운영자 반려';const item=s.inventory.find(i=>i.id===refund.inventoryId);if(item)item.status='보관 중';return finish()}
-  if(a.type==='CANCEL_CHARGE'){const charge=s.charges.find(c=>c.id===a.id);if(!charge||charge.status==='취소 완료')return fail('이미 취소된 충전입니다.');if(s.wallet.paid<charge.amount||s.wallet.bonus<charge.bonus)return fail('이미 사용한 충전금 또는 보너스가 있어 취소할 수 없습니다.');s.wallet.paid-=charge.amount;s.wallet.bonus-=charge.bonus;charge.status='취소 완료';ledger('충전 취소',-charge.amount-charge.bonus);return finish()}
-  if(a.type==='REWARD'){const records=s.content.attendance||[];const today=kstDate();if(records.some(r=>r.date===today&&(r.memberId||'demo-member')===memberId))return fail('오늘 출석 보상을 이미 받았습니다.');s.wallet.bonus+=100;s.content.attendance=[entry({date:today,amount:100,memberId}),...records];ledger('출석 보상',100);return finish()}
+  if(a.type==='CANCEL_CHARGE'){const charge=s.charges.find(c=>c.id===a.id&&(c.memberId||'demo-member')===memberId);if(!charge||charge.status==='취소 완료')return fail('이미 취소되었거나 본인 충전이 아닙니다.');const amount=charge.amount-Number(charge.refundedAmount||0),bonus=charge.bonus-Math.floor(charge.bonus*Number(charge.refundedAmount||0)/charge.amount);if(s.wallet.paid<amount||s.wallet.bonus<bonus)return fail('이미 사용한 충전금 또는 보너스가 있어 취소할 수 없습니다.');s.wallet.paid-=amount;s.wallet.bonus-=bonus;charge.refundedAmount=charge.amount;charge.status='취소 완료';ledger('충전 취소',-amount-bonus);return finish()}
+  if(a.type==='REWARD'){const records=s.content.attendance||[];const today=kstDate();if(records.some(r=>r.date===today&&(r.memberId||'demo-member')===memberId))return fail('오늘 출석 보상을 이미 받았습니다.');const amount=s.platform.settings.attendanceReward;s.wallet.bonus+=amount;s.content.attendance=[entry({date:today,amount,memberId}),...records];ledger('출석 보상',amount);return finish()}
   if(a.type==='REDEEM'){const product=s.products.find(p=>p.id===a.productId);const amount=Number(product?.value??a.amount);if(!product||!validMoney(product.stock)||product.stock<1)return fail('재고가 있는 등록 상품을 선택해 주세요.');if(!validMoney(amount)||amount<=0)return fail('교환 금액은 0보다 커야 합니다.');if(s.wallet.paid+s.wallet.bonus<amount)return fail('포인트가 부족합니다.');const bonus=Math.min(s.wallet.bonus,amount);s.wallet.bonus-=bonus;s.wallet.paid-=amount-bonus;product.stock--;s.inventory.unshift(entry({name:product.name,productId:product.id,value:amount,purchasePrice:amount,paymentMethod:'wallet',paidUsed:amount-bonus,bonusUsed:bonus,grade:'SHOP',status:'보관 중',image:'assets/box-life.png',memberId}));ledger('포인트샵 교환',-amount);return finish()}
   return fail('지원하지 않는 동작입니다.');
 }

@@ -1,12 +1,12 @@
 export const adminGroups = [
- ['박스·상품', [['boxes','랜덤박스 관리'],['probability','금액대별 확률'],['products','상품 등록·재고'],['openings','개봉·당첨 이력']]],
+ ['박스·상품', [['boxes','랜덤박스 관리'],['probability','상품별 당첨 확률'],['products','상품 등록·재고'],['openings','개봉·당첨 이력']]],
  ['충전·환급', [['charges','충전 내역'],['charge-settings','충전 금액·보너스'],['refunds','상품 미수령 환불'],['refund-settings','환불·수수료 정책'],['conversion-settings','상품 전환·복원 정책'],['ledger','포인트 원장']]],
- ['주문·회원', [['orders','주문·배송 관리'],['shipping-settings','배송비·배송 정책'],['inventory','회원 보관함'],['members','회원 관리'],['member-points','회원별 포인트']]],
+ ['주문·회원', [['orders','주문·배송 관리'],['shipping-settings','배송비·배송 정책'],['inventory','회원 보관함'],['members','회원 관리'],['member-points','회원별 포인트·캐시'],['pity','천장·보상']]],
  ['콘텐츠·고객지원', [['banners','홈 배너'],['events','이벤트'],['notices','공지사항'],['faq','자주 묻는 질문'],['inquiries','1:1 문의'],['coupons','쿠폰'],['terms','약관·정책'],['winner-feed','당첨 공개 설정']]],
 ];
 export const tableColumns = {
  boxes:['name','price','category','total','left','status'], probability:['name','price','left','status'],
- products:['name','value','cost','stock','category'], openings:['createdAt','memberId','boxName','productName','value','grade'],
+ products:['name','grade','value','cost','stock','category','status'], openings:['createdAt','memberId','boxName','productName','value','grade'],
  charges:['createdAt','memberId','amount','bonus','status'], refunds:['createdAt','memberId','productName','gross','fee','net','status'],
  orders:['createdAt','memberId','items','total','status','carrier','tracking'], inventory:['createdAt','memberId','name','value','grade','status'],
  members:['name','email','phone','points','status'], 'member-points':['name','email','phone','points','status'],
@@ -15,6 +15,9 @@ export const tableColumns = {
  faq:['question','category','status'], inquiries:['title','customer','status','createdAt'], coupons:['name','code','amount','limit','start','end','status'], terms:['title','start','status'],
 };
 export const detailLabels = {
+ before:'변경 전 확률',after:'변경 후 확률',rewards:'천장 및 보상 정책',rewardGrantId:'보상 지급 번호',campaignSnapshot:'지급 당시 이벤트 조건',burningPercent:'A등급 최종 확률',burningUses:'버닝 횟수',maxClaims:'최대 지급 횟수',referrerId:'추천 회원',referrerReward:'추천인 보상',refereeReward:'신규 가입자 보상',minCharge:'최소 충전금액',paidAt:'지급 시각',referralCode:'친구 추천 코드',
+ refundedAmount:'누적 취소 원금',balanceType:'지급 잔액 구분',cashUsed:'사용 캐시',cashAmountSnapshot:'당첨 당시 캐시 전환액',conversionPercentSnapshot:'당첨 당시 전환율',expiresAt:'수령 신청 마감',automatic:'자동 전환 여부',note:'검토 메모',resolvedAt:'검토 완료 시각',rewardGrantId:'보상 지급 번호',pityClaimId:'천장 수령 번호',actor:'처리 담당',chargeIds:'관련 충전 번호',consumed:'천장 보상 차감액',earned:'인정 결제금액',adjustment:'관리자 정정액',progress:'진행금액',available:'보상 수령 가능',remaining:'남은 금액',
+ brand:'브랜드',specification:'주요 사양',cashAmount:'상품별 캐시 전환액',cash:'상품 전환 캐시',rewardCategory:'천장 보상 카테고리',rewardOnly:'천장 보상 전용',productOdds:'상품별 최종 확률',eventEligible:'이벤트 적용 가능',detailImages:'상세 이미지',policyVersion:'적용 정책 버전',autoConvertAt:'자동 전환 예정 시각',cashValue:'캐시 전환 예정액',rewardType:'보상 종류',campaignId:'이벤트 번호',cycle:'천장 회차',threshold:'천장 기준금액',conversionTarget:'전환 지급 구분',netPaid:'누적 순결제금액',debt:'보상 정산 필요액',
  requestKind:'서비스 요청 유형',policySnapshot:'거래 당시 적용 정책',kind:'정책 유형',version:'정책 버전',consents:'가입 동의 선택 기록',service:'이용약관 선택',privacy:'개인정보 안내 선택',marketing:'혜택 알림 선택',age:'가입 연령 안내 선택',recordedAt:'선택 기록 시각',verification:'검증 상태',publicWins:'당첨 공개 선택',
  id:'기록 번호',total:'총 수량·금액',tiers:'금액대별 당첨 확률',label:'등급',min:'최저 상품 가치',max:'최고 상품 가치',color:'박스 테마 색상',paidNet:'유료 포인트 환급액',bonusNet:'보너스 포인트 환급액',refundMethod:'환급 방식',
  items:'주문 상품',method:'결제 방식',paymentMethod:'결제 방식',orderId:'주문 번호',chargeId:'충전 번호',refundId:'환급 번호',
@@ -26,7 +29,7 @@ export const detailLabels = {
  cost:'매입원가',probabilitySnapshot:'구매 당시 금액대·확률',candidateSnapshot:'당첨 후보 상품',probability:'당첨 금액대 확률',effectiveProbability:'상품 최종 확률',source:'기록 출처',provenance:'당첨 근거',
  feePercent:'적용 수수료율',feeRate:'적용 수수료율',paidRefund:'유료 포인트 환급',bonusRefund:'보너스 포인트 환급',refundPaid:'유료 포인트 환급',refundBonus:'보너스 포인트 환급',
  value:'상품 가치',purchasePrice:'실제 구매가',address:'배송 주소',name:'이름',status:'처리 상태',createdAt:'등록 일시',title:'제목',content:'본문',description:'설명',answer:'답변',reason:'처리 사유',image:'상품 이미지',
- date:'일자',amount:'금액',bonus:'보너스 포인트',points:'보유 포인트',price:'판매가',stock:'재고',category:'카테고리',start:'시작일',end:'종료일',phone:'연락처',email:'이메일',link:'연결 주소',tracking:'송장 번호',carrier:'택배사',code:'쿠폰 코드',limit:'사용 한도',grade:'당첨 등급',
+ date:'일자',amount:'금액',bonus:'보너스 포인트',points:'보유 포인트',price:'판매가',stock:'재고',category:'카테고리',start:'시작일',end:'종료일',phone:'연락처',email:'이메일',link:'연결 주소',tracking:'송장 번호',carrier:'택배사',code:'쿠폰 코드',limit:'총 사용 가능 횟수',grade:'당첨 등급',
 };
 const pointKeys = new Set(['points','bonus','paid','paidUsed','bonusUsed','remaining','paidRemaining','bonusRemaining','conversionPoints','paidRefund','bonusRefund','refundPaid','refundBonus','paidNet','bonusNet']);
 const wonKeys = new Set(['price','value','cost','purchasePrice','gross','fee','net','shippingFee','discount','min','max']);
@@ -34,6 +37,9 @@ export function formatAdminValue(key,value,state={},menu='') {
  if(value==null||value==='')return '—';
  if(key==='memberId'){const m=state.members?.find(m=>m.id===value);return m?`${m.name} · ${value}`:String(value);}
  if(key==='boxId'){const b=state.boxes?.find(b=>String(b.id)===String(value));return b?`${b.name} · ${value}`:String(value);}
+ if(key==='productId'){const p=state.products?.find(p=>String(p.id)===String(value));return p?`${p.name} · ${value}`:String(value);}
+ if(key==='rewardCategory'||key==='category'&&['men','women','appliance'].includes(value))return ({men:'남성 명품',women:'여성 명품',appliance:'가전제품'})[value]||String(value);
+ if(key==='rewardType')return ({points:'보너스 포인트',cash:'상품 전환 캐시',box:'특별 박스 이용권',product:'확정 상품',burning:'A등급 버닝 이용권'})[value]||String(value);
  if(typeof value==='boolean')return value?'예':'아니요';
  if(typeof value==='number'){
   const n=value.toLocaleString('ko-KR',{maximumFractionDigits:4});

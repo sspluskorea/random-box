@@ -1,4 +1,5 @@
 import {detailLabels,formatAdminValue,rowDetails} from './adminTableModel.js';
+import {memberProgress} from './platformModel.js';
 
 export function AdminValue({field,value,state,menu,labels={}}){
  const label=k=>labels[k]||detailLabels[k]||k;
@@ -15,7 +16,8 @@ export function AdminValue({field,value,state,menu,labels={}}){
  return <span>{formatAdminValue(field,value,state,menu)}</span>;
 }
 export default function AdminRowDetails({row,columns,state,menu,labels}){
- const entries=rowDetails(row,columns).filter(([key])=>!(['boxes','probability'].includes(menu)&&['image','detailImages'].includes(key)));
+ const entries=rowDetails(row,columns).filter(([key])=>!(['boxes','probability','products'].includes(menu)&&['image','detailImages'].includes(key)));
  if(['members','member-points'].includes(menu)&&row.id==='demo-member'&&state.wallet){entries.push(['paid',state.wallet.paid],['bonus',state.wallet.bonus]);}
+ if(['members','member-points'].includes(menu)&&state.platform){const progress=memberProgress(state,row.id);entries.push(['cash',row.id==='demo-member'?state.wallet.cash:row.cash],['netPaid',progress.netPaid],['천장 진행 현황',{A:progress.A,B:progress.B}]);}
  return <dl className="ac-inline-details" aria-label="펼쳐진 상세 정보">{entries.map(([key,value])=><div className={value&&typeof value==='object'||['content','answer','description','image'].includes(key)?'ac-detail-wide':''} key={key}><dt>{detailLabels[key]||labels[key]||key}</dt><dd><AdminValue field={key} value={value} state={state} menu={menu} labels={labels}/></dd></div>)}</dl>;
 }
