@@ -1,0 +1,32 @@
+{
+  "automatedTests": {
+    "passed": 120,
+    "failed": 0
+  },
+  "stateHarness": {
+    "passed": 14,
+    "failed": 0
+  },
+  "independentQA": {
+    "passed": 15,
+    "failed": 0
+  },
+  "browserChecks": [
+    "40,000,000 KRW charge approved",
+    "B claim leaves 30,000,000 and A 40,000,000",
+    "A claim leaves A0 and preserves B",
+    "partial charge cancellation 1,000,000 leaves net39,000,000 and A debt1,000,000",
+    "admin guide opens service HTML and developer link",
+    "implementation agents checked mobile rewards/product and cash conversion before final copy fixes"
+  ],
+  "documents": {
+    "servicePages": 8,
+    "developerPages": 7,
+    "allRenderedPagesInspected": true
+  },
+  "scope": "Browser prototype; no real auth, PG, DB or server scheduled jobs",
+  "releaseAssets": {
+    "index-7Z4KkhrB.js": "170bfa718e191e352fd39191a8657c1ba2c815cb1a9c9726d9c28622b654cb60",
+    "index-D2Q5Ek_i.css": "7116ec6c543ba4d8e2091db230123003d0b2847f82c200884c99e0d021adb59c"
+  }
+}
