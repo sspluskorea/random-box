@@ -1,7 +1,7 @@
 export const adminGroups = [
  ['박스·상품', [['boxes','랜덤박스 관리'],['probability','상품별 당첨 확률'],['products','상품 등록·재고'],['openings','개봉·당첨 이력']]],
  ['충전·환급', [['charges','충전 내역'],['charge-settings','충전 금액·보너스'],['refunds','상품 미수령 환불'],['refund-settings','환불·수수료 정책'],['conversion-settings','상품 전환·복원 정책'],['ledger','포인트 원장']]],
- ['주문·회원', [['orders','주문·배송 관리'],['shipping-settings','배송비·배송 정책'],['inventory','회원 보관함'],['members','회원 관리'],['member-points','회원별 포인트·캐시'],['pity','천장·보상']]],
+ ['주문·회원', [['orders','주문·배송 관리'],['shipping-settings','배송비·배송 정책'],['inventory','회원 보관함'],['members','회원 관리'],['member-points','회원별 포인트·캐시'],['pity','누적 결제 보상']]],
  ['콘텐츠·고객지원', [['banners','홈 배너'],['events','이벤트'],['notices','공지사항'],['faq','자주 묻는 질문'],['inquiries','1:1 문의'],['coupons','쿠폰'],['terms','약관·정책'],['winner-feed','당첨 공개 설정']]],
 ];
 export const tableColumns = {
@@ -15,9 +15,9 @@ export const tableColumns = {
  faq:['question','category','status'], inquiries:['title','customer','status','createdAt'], coupons:['name','code','amount','limit','start','end','status'], terms:['title','start','status'],
 };
 export const detailLabels = {
- before:'변경 전 확률',after:'변경 후 확률',rewards:'천장 및 보상 정책',rewardGrantId:'보상 지급 번호',campaignSnapshot:'지급 당시 이벤트 조건',burningPercent:'A등급 최종 확률',burningUses:'버닝 횟수',maxClaims:'최대 지급 횟수',referrerId:'추천 회원',referrerReward:'추천인 보상',refereeReward:'신규 가입자 보상',minCharge:'최소 충전금액',paidAt:'지급 시각',referralCode:'친구 추천 코드',
- refundedAmount:'누적 취소 원금',balanceType:'지급 잔액 구분',cashUsed:'사용 캐시',cashAmountSnapshot:'당첨 당시 캐시 전환액',conversionPercentSnapshot:'당첨 당시 전환율',expiresAt:'수령 신청 마감',automatic:'자동 전환 여부',note:'검토 메모',resolvedAt:'검토 완료 시각',rewardGrantId:'보상 지급 번호',pityClaimId:'천장 수령 번호',actor:'처리 담당',chargeIds:'관련 충전 번호',consumed:'천장 보상 차감액',earned:'인정 결제금액',adjustment:'관리자 정정액',progress:'진행금액',available:'보상 수령 가능',remaining:'남은 금액',
- brand:'브랜드',specification:'주요 사양',cashAmount:'상품별 캐시 전환액',cash:'상품 전환 캐시',rewardCategory:'천장 보상 카테고리',rewardOnly:'천장 보상 전용',productOdds:'상품별 최종 확률',eventEligible:'이벤트 적용 가능',detailImages:'상세 이미지',policyVersion:'적용 정책 버전',autoConvertAt:'자동 전환 예정 시각',cashValue:'캐시 전환 예정액',rewardType:'보상 종류',campaignId:'이벤트 번호',cycle:'천장 회차',threshold:'천장 기준금액',conversionTarget:'전환 지급 구분',netPaid:'누적 순결제금액',debt:'보상 정산 필요액',
+ before:'변경 전 확률',after:'변경 후 확률',rewards:'누적 결제 보상 정책',rewardGrantId:'보상 지급 번호',campaignSnapshot:'지급 당시 이벤트 조건',burningPercent:'A등급 최종 확률',burningUses:'버닝 횟수',maxClaims:'최대 지급 횟수',referrerId:'추천 회원',referrerReward:'추천인 보상',refereeReward:'신규 가입자 보상',minCharge:'최소 충전금액',paidAt:'지급 시각',referralCode:'친구 추천 코드',
+ refundedAmount:'누적 취소 원금',balanceType:'지급 잔액 구분',cashUsed:'사용 캐시',cashAmountSnapshot:'당첨 당시 캐시 전환액',conversionPercentSnapshot:'당첨 당시 전환율',expiresAt:'수령 신청 마감',automatic:'자동 전환 여부',note:'검토 메모',resolvedAt:'검토 완료 시각',rewardGrantId:'보상 지급 번호',pityClaimId:'보상 수령 번호',actor:'처리 담당',chargeIds:'관련 충전 번호',consumed:'누적 결제 보상 차감액',earned:'인정 결제금액',adjustment:'관리자 정정액',progress:'진행금액',available:'보상 수령 가능',remaining:'남은 금액',
+ brand:'브랜드',specification:'주요 사양',cashAmount:'상품별 캐시 전환액',cash:'상품 전환 캐시',rewardCategory:'누적 결제 보상 카테고리',rewardOnly:'누적 결제 보상 전용',productOdds:'상품별 최종 확률',eventEligible:'이벤트 적용 가능',detailImages:'상세 이미지',policyVersion:'적용 정책 버전',autoConvertAt:'자동 전환 예정 시각',cashValue:'캐시 전환 예정액',rewardType:'보상 종류',campaignId:'이벤트 번호',cycle:'보상 회차',threshold:'보상 목표 금액',conversionTarget:'전환 지급 구분',netPaid:'누적 순결제금액',debt:'보상 정산 필요액',
  requestKind:'서비스 요청 유형',policySnapshot:'거래 당시 적용 정책',kind:'정책 유형',version:'정책 버전',consents:'가입 동의 선택 기록',service:'이용약관 선택',privacy:'개인정보 안내 선택',marketing:'혜택 알림 선택',age:'가입 연령 안내 선택',recordedAt:'선택 기록 시각',verification:'검증 상태',publicWins:'당첨 공개 선택',
  id:'기록 번호',total:'총 수량·금액',tiers:'금액대별 당첨 확률',label:'등급',min:'최저 상품 가치',max:'최고 상품 가치',color:'박스 테마 색상',paidNet:'유료 포인트 환급액',bonusNet:'보너스 포인트 환급액',refundMethod:'환급 방식',
  items:'주문 상품',method:'결제 방식',paymentMethod:'결제 방식',orderId:'주문 번호',chargeId:'충전 번호',refundId:'환급 번호',

@@ -102,7 +102,7 @@ function MobileMenu({ open, onClose, go }) {
     <div className="mobile-overlay" role="dialog" aria-modal="true" aria-label="전체 메뉴"><div className="mobile-sheet">
       <div className="mobile-sheet-head"><AppLogo /><button className="icon-button" onClick={onClose}><X /></button></div>
       {userNav.map(([key, label]) => <button key={key} onClick={() => { go(key); onClose(); }}>{label}<ArrowRight /></button>)}
-      {[['rewards','천장 보상'],['benefits','누적 결제 혜택'],['events','이벤트'],['community','커뮤니티']].map(([key,label])=><button key={key} onClick={()=>{go(key);onClose();}}>{label}<ArrowRight/></button>)}
+      {[['rewards','누적 결제 보상'],['benefits','누적 결제 혜택'],['events','이벤트'],['community','커뮤니티']].map(([key,label])=><button key={key} onClick={()=>{go(key);onClose();}}>{label}<ArrowRight/></button>)}
       {[['mypage','마이페이지'],['wallet','내 지갑'],['charge','포인트 충전'],['cart','장바구니'],['login','로그인'],['signup','회원가입'],['notices','공지사항'],['support','고객센터'],['terms','약관 및 정책']].map(([key,label])=><button key={key} onClick={()=>{go(key);onClose()}}>{label}<ArrowRight/></button>)}
     </div></div>
   );
