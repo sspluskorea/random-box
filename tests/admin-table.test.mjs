@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {adminGroups,tableColumns,rowDetails,formatAdminValue} from '../src/adminTableModel.js';
 test('관리자 핵심 메뉴만 유지하고 운영현황·백업 등 제거',()=>{
  const keys=adminGroups.flatMap(([,rows])=>rows.map(([key])=>key));
- assert.equal(new Set(keys).size,23);
+ assert.equal(keys.length,24);
+ assert.equal(new Set(keys).size,keys.length);
  for(const key of ['overview','diagnostics','backup','stats','logs','suppliers','operators','maintenance'])assert.ok(!keys.includes(key));
  for(const key of ['boxes','probability','charges','refunds','orders','members','notices','events','terms'])assert.ok(keys.includes(key));
 });

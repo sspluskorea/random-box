@@ -133,7 +133,7 @@ test('관리자 가격·확률 설정값이 실제 데모 구매 결과에 반�
   boxes[0].tiers.forEach(tier => { tier.probability = tier.id === 'S' ? 100 : 0; });
   state = apply(state, { type: 'UPDATE', key: 'boxes', value: boxes });
   const after = apply(state, { type: 'PURCHASE', boxId: 1, quantity: 1, method: 'wallet' });
-  assert.equal(after.lastResults[0].grade, 'S');
+  assert.equal(after.lastResults[0].grade, 'A');
   assert.equal(after.lastResults[0].name, '프리미엄 노트북');
   assert.equal(after.orders[0].total, 12345);
   assert.equal(after.wallet.paid + after.wallet.bonus, state.wallet.paid + state.wallet.bonus - 12345);

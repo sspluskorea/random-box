@@ -14,7 +14,7 @@ test('패스 카드 빈 입력 구매·중복구매 차단·당일 중복 보상
  assert.equal(transition(s,{type:'BUY_PASS',planId:sub.planId}).ok,false);const claimed=apply(s,{type:'CLAIM_PASS',subscriptionId:sub.id});assert.equal(claimed.wallet.bonus,s.wallet.bonus+300);assert.equal(claimed.content.subscriptions[0].claims[0].date,kstDate());assert.equal(transition(claimed,{type:'CLAIM_PASS',subscriptionId:sub.id}).ok,false);
 });
 test('패스 포인트 결제는 유상·보너스 잔액 순서와 원장 연결',()=>{
- const s=buy(seedState(),'wallet');assert.deepEqual(s.wallet,{paid:93100,bonus:0});assert.equal(s.ledger[0].amount,-9900);
+ const s=buy(seedState(),'wallet');assert.deepEqual(s.wallet,{paid:93100,bonus:0,cash:0});assert.equal(s.ledger[0].amount,-9900);
  const insufficient=seedState();insufficient.wallet={paid:0,bonus:0};assert.equal(transition(insufficient,{type:'BUY_PASS',planId:'nebula-pass',method:'wallet'}).ok,false);
 });
 test('6일 블록 보충출석은 박스가50% 차감과 연속보상 단1회',()=>{

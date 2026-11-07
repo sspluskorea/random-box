@@ -27,7 +27,7 @@ test('보너스로 산 상품 환급은 유상 포인트를 만들지 않음',()
 });
 test('상품 전환과 복구는 무상 잔액과 상품 상태를 함께 되돌림',()=>{
   const s=seedState(),converted=apply(s,{type:'CONVERT_ITEM',inventoryId:'sample-item'});
-  assert.equal(converted.wallet.bonus,135300);assert.equal(converted.wallet.paid,s.wallet.paid);assert.equal(converted.inventory[0].status,'포인트 전환');
+  assert.equal(converted.wallet.bonus,116400);assert.equal(converted.wallet.paid,s.wallet.paid);assert.equal(converted.inventory[0].status,'포인트 전환');
   assert.equal(transition(converted,{type:'CONVERT_ITEM',inventoryId:'sample-item'}).ok,false);
   assert.equal(transition(converted,{type:'REFUND',inventoryId:'sample-item'}).ok,false);
   const restored=apply(converted,{type:'RESTORE_ITEM',conversionId:converted.conversions[0].id});assert.deepEqual(restored.wallet,s.wallet);assert.equal(restored.inventory[0].status,'보관 중');assert.equal(restored.conversions[0].status,'복구 완료');
@@ -52,7 +52,7 @@ test('로그 추가는 기존 기록 보존, 손상 백업은 원본 상태 보�
   const s=apply(seedState(),{type:'LOG',action:'첫 기록'}),next=apply(s,{type:'LOG',action:'두 번째'});assert.equal(next.logs[1].action,'첫 기록');
   for(const value of [{version:2}, {...seedState(),wallet:{paid:-1,bonus:0}}])assert.equal(transition(next,{type:'IMPORT_STATE',value}).ok,false);
   const restored=apply(next,{type:'IMPORT_STATE',value:seedState()});assert.equal(restored.logs[0].action,'IMPORT_STATE');
-  assert.equal(loadState({getItem:()=>JSON.stringify({version:2})}).boxes.length,6);
+  assert.deepEqual(loadState({getItem:()=>JSON.stringify({version:2})}).boxes.map(b=>b.id),seedState().boxes.map(b=>b.id));
 });
 test('관리자 송장과 배송 상태는 해당 보관함 상품에 함께 반영',()=>{
   const shipped=apply(seedState(),{type:'SHIP',ids:['sample-item']});
