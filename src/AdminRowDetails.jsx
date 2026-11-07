@@ -18,8 +18,8 @@ export function AdminValue({field,value,state,menu,labels={}}){
 export default function AdminRowDetails({row,columns,state,menu,labels}){
  const entries=rowDetails(row,columns).filter(([key])=>!(['boxes','probability','products'].includes(menu)&&['image','detailImages'].includes(key)));
  if(['members','member-points'].includes(menu)&&row.id==='demo-member'&&state.wallet){entries.push(['paid',state.wallet.paid],['bonus',state.wallet.bonus]);}
- if(['members','member-points'].includes(menu)&&state.platform){const progress=memberProgress(state,row.id);entries.push(['cash',row.id==='demo-member'?state.wallet.cash:row.cash],['netPaid',progress.netPaid],['누적 결제 보상 진행 현황',{A:progress.A,B:progress.B}]);}
+ if(['members','member-points'].includes(menu)&&state.platform){const progress=memberProgress(state,row.id);entries.push(['cash',row.id==='demo-member'?state.wallet.cash:row.cash],['netPaid',progress.netPaid],['천장 보상 진행 현황',{A:progress.A,B:progress.B}]);}
  // Computed wallet and reward values replace stored fields instead of rendering twice.
  const uniqueEntries=[...new Map(entries)];
- return <dl className="ac-inline-details" aria-label="펼쳐진 상세 정보">{uniqueEntries.map(([key,value])=><div className={value&&typeof value==='object'||['content','answer','description','image'].includes(key)?'ac-detail-wide':''} key={key}><dt>{detailLabels[key]||labels[key]||key}</dt><dd><AdminValue field={key} value={value} state={state} menu={menu} labels={labels}/></dd></div>)}</dl>;
+ return <dl className="ac-inline-details" aria-label="펼쳐진 상세 정보">{uniqueEntries.map(([key,value])=><div className={value&&typeof value==='object'||['content','answer','description','image'].includes(key)?'ac-detail-wide':''} key={key}><dt>{detailLabels[key]||labels[key]||key}</dt><dd><AdminValue field={key} value={value} state={state} menu={key==='천장 보상 진행 현황'?'pity-progress':menu} labels={key==='천장 보상 진행 현황'?{...labels,remaining:'다음 확정보상까지 남은 금액',consumed:'초기화된 게이지 합계',progress:'현재 천장 게이지',available:'확정보상 수령 가능'}:labels}/></dd></div>)}</dl>;
 }
