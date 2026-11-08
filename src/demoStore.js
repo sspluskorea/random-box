@@ -135,7 +135,7 @@ export function transition(previous, action, random=Math.random) {
     if(a.key==='content'&&a.value?.passPlans&&(!Array.isArray(a.value.passPlans)||a.value.passPlans.some(p=>!validPass(p)||!s.boxes.some(b=>String(b.id)===String(p.boxId)))))return fail('패스 기간·금액·보상·연결 박스 설정을 확인해 주세요.');
     if(!['boxes','products','members','inventory','orders','logs','content','selectedBoxId','checkoutQuantity'].includes(a.key))return fail('전용 거래 기능으로 변경해 주세요.');
     if(a.key==='boxes'&&(!Array.isArray(a.value)||a.value.some(b=>!validMoney(b.price)||Number(b.price)<=0||!validMoney(b.left)||(b.productOdds?.length?!validProductOdds(s,b):!validTiers(b.tiers)))))return fail('박스 가격·재고·상품별 확률 합계를 확인해 주세요.');
-    if(a.key==='products'&&(!Array.isArray(a.value)||a.value.some(p=>!validMoney(p.value)||Number(p.value)<=0||!validMoney(p.stock)||(p.grade&&!['A','B','C','D','E'].includes(p.grade))||(p.cashAmount!==''&&p.cashAmount!=null&&!validMoney(p.cashAmount)))))return fail('상품 등급·금액·재고·전환액을 확인해 주세요.');
+    if(a.key==='products'&&(!Array.isArray(a.value)||a.value.some(p=>!validMoney(p.value)||Number(p.value)<=0||!validMoney(p.stock)||(p.grade&&!['A','B','C','D','E'].includes(p.grade))||(p.cashAmount!==''&&p.cashAmount!=null&&!validMoney(p.cashAmount))||(p.returnPointPercent!==''&&p.returnPointPercent!=null&&!validRate(p.returnPointPercent)))))return fail('상품 등급·금액·재고·전환액을 확인해 주세요.');
     if(a.key==='products'&&!rewardProductReferencesValid(s,a.value))return fail('확정보상에 지정된 상품은 지급 상품 지정을 해제한 뒤 삭제하거나 등급·카테고리를 변경해 주세요.');
     if(a.key==='products'&&s.boxes.some(b=>b.productOdds?.some(o=>!a.value.some(p=>p.id===o.productId&&!p.rewardOnly))))return fail('박스 확률에 연결된 상품은 구성에서 제외한 뒤 삭제해 주세요.');
     if(a.key==='boxes')for(const box of a.value){const old=s.boxes.find(b=>String(b.id)===String(box.id));if(JSON.stringify(old?.productOdds||old?.tiers)!==JSON.stringify(box.productOdds||box.tiers))s.platform.probabilityHistory.unshift(entry({boxId:box.id,boxName:box.name,actor:'관리자',before:structuredClone(old?.productOdds||old?.tiers||[]),after:structuredClone(box.productOdds||box.tiers||[])}));}
@@ -153,7 +153,14 @@ export function transition(previous, action, random=Math.random) {
   }
   if(['LOGIN','SIGNUP'].includes(a.type)){const member=s.members.find(m=>m.id==='demo-member');s.session={id:'demo-member',name:a.fields?.name||member?.name||'박스러버',email:a.fields?.email||member?.email||'demo@example.com',phone:a.fields?.phone||member?.phone||'',publicWins:member?.publicWins??true};if(a.type==='SIGNUP'){s.session.consents={service:!!a.fields?.consentService,privacy:!!a.fields?.consentPrivacy,marketing:!!a.fields?.consentMarketing,age:!!a.fields?.consentAge,recordedAt:stamp(),policySnapshot:policySnapshot(s),verification:'확인되지 않은 화면 선택 기록'};}s.members=s.members.map(m=>m.id==='demo-member'?{...m,...s.session}:m);return finish()}
   if(a.type==='LOGOUT'){s.session=null;return finish()}
-  if(a.type==='ADJUST_POINTS'){const member=s.members.find(m=>m.id===a.memberId),amount=Number(a.amount);if(!member||!Number.isSafeInteger(amount)||!validMoney(Number(member.points||0)+amount))return fail('회원 또는 조정 금액을 확인해 주세요.');if(member.id==='demo-member'){if(s.wallet.paid+amount<0)return fail('유상 잔액을 초과해 차감할 수 없습니다.');s.wallet.paid+=amount}else member.points=Number(member.points||0)+amount;s.ledger.unshift(entry({type:'관리자 포인트 조정',amount,memberId:a.memberId,reason:a.reason||'운영자 조정'}));return finish()}
+  if(a.type==='ADJUST_POINTS'){
+    const member=s.members.find(m=>m.id===a.memberId),amount=Number(a.amount),balanceType=a.balanceType||'bonus';
+    if(!member||!['paid','bonus'].includes(balanceType)||!Number.isSafeInteger(amount)||!String(a.reason||'').trim())return fail('회원·잔액 구분·조정 금액과 사유를 확인해 주세요.');
+    const wallet=a.memberId===memberId?s.wallet:(member.wallet||={paid:0,bonus:Number(member.points||0),cash:0});
+    if(!validMoney(Number(wallet[balanceType]||0)+amount))return fail('선택한 잔액을 초과해 차감할 수 없습니다.');
+    wallet[balanceType]=Number(wallet[balanceType]||0)+amount;member.points=wallet.paid+wallet.bonus;
+    s.ledger.unshift(entry({type:balanceType==='paid'?'관리자 페이 조정':'관리자 포인트 조정',amount,balanceType,memberId:a.memberId,reason:String(a.reason).trim()}));return finish();
+  }
   if(a.type==='PROFILE'){s.session={id:memberId,name:'박스러버',email:'demo@example.com',...s.session,...a.fields};s.members=s.members.map(m=>m.id===memberId?{...m,...s.session}:m);return finish()}
   if(a.type==='CHARGE'){const amount=Number(a.amount);if(!validMoney(amount)||amount<=0||!validRate(s.settings.bonusPercent))return fail('충전 금액과 보너스 설정을 확인해 주세요.');const bonus=Math.floor(amount*Number(s.settings.bonusPercent)/100);s.wallet.paid+=amount;s.wallet.bonus+=bonus;s.charges.unshift(entry({memberId,amount,bonus,method:a.method||'카드',status:'충전 완료',policySnapshot:policySnapshot(s)}));ledger('충전',amount);if(bonus)ledger('충전 보너스',bonus);return finish()}
   if(a.type==='PURCHASE'){
@@ -192,7 +199,7 @@ export function transition(previous, action, random=Math.random) {
   if(a.type==='RESTORE_ITEM'){
     const record=s.conversions.find(c=>a.conversionId?c.id===a.conversionId:c.inventoryId===a.inventoryId&&c.status==='전환 완료');const item=s.inventory.find(i=>i.id===record?.inventoryId);
     if(!record||record.status!=='전환 완료'||record.memberId!==memberId||!item||item.status!=='포인트 전환')return fail('복구 가능한 전환 상품이 없습니다.');
-    if(Date.now()>new Date(record.restorableUntil).getTime())return fail('상품 복구 가능 시간이 지났습니다.');
+    if(!Number.isFinite(Date.parse(record.restorableUntil))||Date.now()>Date.parse(record.restorableUntil))return fail('상품 복구 가능 시간이 지났거나 복구 기한이 없는 기록입니다.');
     const recent=s.conversions.filter(c=>c.memberId===memberId&&c.restoredAt&&new Date(c.restoredAt).getTime()>Date.now()-86400000).length;
     if(recent>=Number(s.settings.restoreDailyLimit))return fail('최근 24시간 상품 복구 횟수를 초과했습니다.');
     if(s.wallet.bonus<record.amount)return fail('전환 포인트가 사용되어 복구할 수 없습니다.');
@@ -203,15 +210,14 @@ export function transition(previous, action, random=Math.random) {
     const refund=s.refunds.find(r=>r.id===a.id);if(!refund||refund.status!=='승인 대기')return fail('이미 처리된 환불입니다.');
     const targetId=refund.memberId||'demo-member',member=s.members.find(m=>m.id===targetId),item=s.inventory.find(i=>i.id===refund.inventoryId);
     if(!member||!item||item.status!=='환불 대기'||(item.memberId||targetId)!==targetId||!validMoney(refund.net))return fail('환불 대상 회원·상품·금액을 확인해 주세요.');
-    const wallet=targetId===memberId?s.wallet:(member.wallet||={paid:Number(member.points||0),bonus:0,cash:Number(member.cash||0)});
+    const wallet=targetId===memberId?s.wallet:(member.wallet||={paid:0,bonus:Number(member.points||0),cash:0});
     const paid=Number(refund.paidNet??refund.net),bonus=Number(refund.bonusNet||0),net=Number(refund.net);
     if(!validMoney(paid)||!validMoney(bonus)||paid+bonus!==net)return fail('환급 금액 배분이 올바르지 않습니다.');
-    if(refund.refundMethod==='cash')wallet.cash=Number(wallet.cash||0)+net;
-    else if(refund.refundMethod!=='original'){wallet.paid+=paid;wallet.bonus+=bonus;}
+    wallet.bonus+=net;refund.settlementBalanceType='bonus';refund.settlementPolicy='상품 반환 포인트 지급';
     if(![wallet.paid,wallet.bonus,wallet.cash].every(validMoney)||!Number.isSafeInteger(wallet.paid+wallet.bonus+wallet.cash))return fail('환급 후 잔액을 확인해 주세요.');
     if(targetId!==memberId){member.points=wallet.paid+wallet.bonus;member.cash=wallet.cash;}
     refund.status='환불 완료';item.status='환불 완료';
-    if(refund.refundMethod!=='original')s.ledger.unshift(entry({memberId:targetId,type:refund.refundMethod==='cash'?'관리자 캐시 환급 승인':'관리자 환불 승인',amount:net,balanceType:refund.refundMethod==='cash'?'cash':'points',refundId:refund.id}));
+    s.ledger.unshift(entry({memberId:targetId,type:'과거 상품 환급 포인트 승인',amount:net,balanceType:'bonus',refundId:refund.id}));
     return finish();
   }
   if(a.type==='REJECT_REFUND'){const refund=s.refunds.find(r=>r.id===a.id);if(!refund||refund.status!=='승인 대기')return fail('대기 중인 환불만 반려할 수 있습니다.');refund.status='반려';refund.reason=a.reason||'운영자 반려';const item=s.inventory.find(i=>i.id===refund.inventoryId);if(item)item.status='보관 중';return finish()}
