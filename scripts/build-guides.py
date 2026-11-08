@@ -111,7 +111,7 @@ dev=[
  P('등급별 유효 진행액 = 순충전액 + 관리자 정정 합계 − 해당 등급 수령 기준금액 합계입니다. 화면 진행액은 0 이상으로 표시하고, 음수분은 정산 필요액으로 따로 남깁니다. A와 B의 수령 합계는 서로 공유하지 않습니다.'),
  P('기본 B 10,000,000원, A 40,000,000원입니다. 최초 인정 충전 시 각 회차의 기준을 고정합니다. 기준 변경 후에도 진행 중 회차는 기존 값을 사용하며, 수령 후 다음 회차에 새 기준을 적용합니다. 한 번 수령할 때 한 회차만 차감하고 초과분을 유지합니다.'),
  T(['작업','입력과 처리'],[['CHARGE','amount·method·requestId. 승인 원금과 보너스 기록 후 누적 보상 확인'],['REFUND_CHARGE','id·memberId·amount. 잔여 원금 내 부분 취소, 보너스 비례 회수, 인정액 재계산'],['CLAIM_PITY','grade·category·requestId. 조건·재고 확인 후 상품 지급과 해당 회차 소진'],['ADMIN_CLAIM_PITY','memberId와 reason 추가. 동일 조건을 확인하고 처리 담당·사유 저장'],['ADMIN_PITY_ADJUST','memberId·grade·amount·reason. 진행금액만 정정하고 이력 저장'],['RESOLVE_SETTLEMENT','id·note. 검토 메모 저장이며 채무나 잔액을 자동 해소하지 않음']]),
- P('수령은 보관함 확정 지급 시점입니다. 배송 완료 시점과 혼동하지 않습니다. 남성·여성·가전 중 선택한 카테고리의 지급 가능한 지정 상품을 사용합니다. 품절이면 권리를 보존하고 차감하지 않습니다. 실제 대체 상품 제안과 동의 수집은 후속 개발 범위입니다.')]),
+ P('수령은 보관함 확정 지급 시점입니다. 배송 완료 시점과 혼동하지 않습니다. 활성 카테고리 중 선택한 종류의 명시적 지정 상품을 사용합니다. 품절이면 권리를 보존하고 차감하지 않습니다. 실제 대체 상품 제안과 동의 수집은 후속 개발 범위입니다.')]),
 ('확률과 이벤트 및 전환',[
  H('추첨 조건'),
  P('상품별 확률은 productOdds 배열로 저장합니다. 합계 100%, 중복 상품, 존재 여부와 재고·상태를 검증합니다. 0%를 포함해 박스에서 참조하는 상품은 참조 해제 전 삭제하지 않습니다. 확률표를 구매 결과에 보존하고 공개 화면과 실제 선택 계산이 같은 데이터를 사용합니다.'),
@@ -265,6 +265,68 @@ def finalize_text(value):
  return value
 service=finalize_text(service)
 dev=finalize_text(dev)
+
+# Current operator and handoff additions after shared terminology normalization.
+def replace_current(value):
+ if isinstance(value,str):
+  pairs={
+   '자동 테스트 133개':'자동 테스트 169개','하네스 14개':'하네스 24개',
+   '실제 React 렌더링과 상품 연결 검증 5개도 포함됩니다.':'SSR로 주요 7개 화면의 렌더링도 확인했습니다.',
+   '남성 명품·여성 명품·가전제품 중 카테고리를 선택':'관리자가 활성화한 상품 종류 중 카테고리를 선택',
+   'A·B 목표 금액을 입력해 저장합니다.':'A~E 중 운영할 등급을 활성화하고 목표 금액과 상품 종류별 지급 상품을 지정합니다. 변경 사유를 입력하고 저장합니다.',
+   '실제 대체 상품 제안과 동의 수집은 후속 개발 범위입니다.':'품절 대체 제안과 회원의 수락·거절은 구현되어 있으며 실제 외부 배송은 연결되지 않았습니다.',
+   '품절 대체상품 동의,':'실제 대체 배송의 책임과 제공업체 계약,',
+   '필수 동의 강제는 시연을 위해 완화했습니다.':'필수 동의는 기본 체험 설정에서 완화되며 관리자 옵션을 켜면 화면과 거래 처리에서 검사합니다.',
+   '단일 JS 번들이 약 600KB라 분할 권고 경고가 있습니다.':'단일 JS 번들이 500KB를 넘어 분할 권고 경고가 있습니다.'
+  }
+  for a,b in pairs.items():value=value.replace(a,b)
+  return value
+ if isinstance(value,list):return [replace_current(v) for v in value]
+ if isinstance(value,tuple):return tuple(replace_current(v) for v in value)
+ return value
+service=replace_current(service)
+dev=replace_current(dev)
+service += [
+('천장 등급과 지급 상품을 변경할 때',[
+ P('기본은 B등급 1,000만원과 A등급 4,000만원입니다. 운영자는 천장 보상에서 A~E 중 필요한 등급과 상품 종류를 선택하여 운영할 수 있습니다. 일반 박스의 상품별 당첨 확률과 천장 확정보상 설정은 별개입니다.'),
+ H('상품 준비와 기준 저장'),
+ L('상품 등록·재고에서 보상 전용 상품의 등급, 카테고리, 재고와 판매 상태를 확인합니다. 새 상품 종류를 사용할 경우 카테고리 식별값과 표시 이름을 구분합니다.','보상 기준 설정에서 등급 활성 여부와 원 단위 기준금액을 입력합니다. 활성 카테고리마다 실제 지급할 상품 하나를 명시적으로 선택합니다. 상품의 등급과 카테고리가 연결하려는 조건과 일치해야 합니다.','변경 사유를 작성하고 저장합니다. 저장 오류가 있으면 잘못된 연결, 누락된 상품, 금액과 사유를 수정합니다. 같은 등급의 다른 상품으로 자동 교체되지는 않습니다.','사용자 천장 보상에서 표시되는 등급, 상품 종류, 지급 예정 상품과 기준금액을 확인합니다. 변경 이력에서 이전 값과 저장한 값을 비교합니다.'),
+ H('기존 회원에게 적용되는 방식'),
+ P('이미 진행 중인 회차는 이전 기준을 유지합니다. 수령 후 시작하는 다음 회차부터 변경 기준을 사용하며 화면에서 이번 기준과 다음 기준을 함께 안내합니다. 새로 활성화한 등급은 기존 순충전 실적도 인정하므로 과거 결제액이 큰 회원은 바로 수령 가능할 수 있습니다. 활성화 전에 대상 회원의 예상 진행액을 확인하세요.'),
+ P('확정보상 수령 시 해당 등급 게이지는 초과금액까지 0이 되며 다른 등급은 유지됩니다. 지급 상품이 품절이면 수령 권리는 유지하고 임의 상품으로 지급하지 않습니다. 새 상품 연결은 운영자가 명시적으로 수정하고 사유를 남겨야 합니다.')]),
+('품절 대체 상품을 제안하고 배송하기',[
+ H('운영자가 제안할 때'),
+ L('회원 보관함에서 아직 보관 중인 상품과 원상품의 품절 또는 판매 중지 상태를 확인합니다. 이미 배송 중이거나 수령 기한이 지난 상품에는 제안할 수 없습니다.','품절 상품 대체 제안에서 대상 보관 상품, 재고가 있는 대체 배송 상품, 제안 사유를 입력하고 회원에게 대체 상품 제안을 누릅니다.','제안·응답 이력에서 제안 대기를 확인하고 사용자 보관함에 같은 상품과 사유가 보이는지 확인합니다. 답변 대기 중에는 배송·환급·전환을 진행하지 않습니다.'),
+ H('사용자가 선택할 때'),
+ P('보관함의 대체 상품 제안에서 원상품과 대체 상품의 이름·기준가·등급·사유를 비교합니다. 대체 상품 수락을 누르면 배송 예정 상품이 변경되고, 거절하고 기존 상품 유지를 누르면 원상품을 유지합니다. 수락 당시 대체 재고가 없으면 처리되지 않으므로 고객센터에 새 제안을 요청합니다.'),
+ H('배송과 기한 처리'),
+ P('수락 후 사용자가 배송을 신청하면 주문·배송 목록에 대체 상품명이 표시됩니다. 원래 당첨 상품과 확률, 기준가 및 환급·전환 조건은 바뀌지 않습니다. 상품 상세와 배송 대상 이름을 구분해서 확인하세요.'),
+ P('제안은 수령 기한을 무기한 늘리지 않습니다. 기한 처리 시 답변 대기 제안은 종료되고 일반 상품은 당첨 당시 조건에 따라 자동 포인트 전환됩니다. 수락할 때 확보한 대체 재고는 환급·전환으로 상품을 포기하면 반환됩니다. 상품을 복원하려면 대체 재고를 다시 확보할 수 있어야 합니다. 부족하면 임의로 재고를 만들지 말고 표시된 오류를 확인하세요.'),
+ P('이 화면은 제안·동의·배송 대상 기록을 연결합니다. 실제 택배 접수나 물품 회수는 수행하지 않습니다. 천장 지급 상품의 품절은 지급 전 권리를 유지하는 절차이며, 이미 보관함에 들어온 상품의 대체 배송과 구분합니다.')]),
+('필수 동의와 저장 오류를 관리하기',[
+ H('약관 정책에서 동의 설정'),
+ L('필수 동의 확인은 기본적으로 꺼져 있어 빈 입력 체험을 유지합니다. 실제 동의 확인 흐름을 검토할 때 켜고 변경 사유를 남겨 저장합니다.','켜진 상태에서는 회원가입의 이용약관·개인정보·연령 확인, 충전의 결제 조건, 구매의 확률·보상 조건, 배송의 정보 이용 확인이 필요합니다. 선택적 혜택 알림은 필수로 강제하지 않습니다.','제3자 제공을 활성화할 때에는 제공받는 업체·목적·항목·보유기간을 빠짐없이 등록합니다. 사용자 배송 신청과 개인정보·배송 정책 화면에서 동일하게 보이는지 확인합니다. 엄격 동의가 켜진 경우 해당 배송 동의도 검사합니다.'),
+ P('주문에는 당시 제공 정보와 동의 선택을 함께 저장합니다. 업체 설정을 나중에 바꿔도 과거 주문 안내를 덮어쓰지 않습니다. 설정 변경 전후와 사유를 이력에서 확인합니다. 이 옵션은 실제 본인인증, 법률 검토 또는 외부 업체 전송을 대신하지 않습니다.'),
+ H('유효기간과 입력 오류'),
+ P('포인트·캐시는 별도 만료가 없으면 기본 무기한입니다. 유효기간 안내를 바꾸는 것만으로 잔액 소멸 작업이 시작되지는 않습니다. 실제 만료 정책과 예약 처리는 운영 확정과 별도 구현이 필요합니다.'),
+ P('이미지는 JPG·PNG·WEBP 파일로 등록합니다. 파일 내용과 형식이 맞지 않거나 크기 제한을 넘으면 다시 선택합니다. 연결 주소 오류는 정상 웹 주소나 내부 경로로 수정합니다. CSV 내보내기는 수식으로 해석될 수 있는 값을 문자로 보호합니다.'),
+ P('저장 실패가 표시되면 성공으로 안내하지 않습니다. 용량 부족 시 이미지를 줄이고 재시도합니다. 다른 탭의 변경 안내가 나오면 최신 상태를 확인한 뒤 다시 처리합니다. 오래 열린 탭에서 같은 결제를 반복 승인하거나 저장된 거래를 직접 수정하지 마세요.')])]
+dev += [
+('동적 보상과 동의 설정 계약',[
+ P('platform.rewardRules는 A~E별 enabled와 threshold, rewardCategories는 id·name·enabled 목록, rewardMappings는 등급과 카테고리별 productId입니다. memberProgress는 모든 등급과 활성 여부를 반환합니다. 표시 순서는 활성 기준금액 순이며 지급은 명시적 매핑만 사용합니다.'),
+ P('SAVE_REWARD_RULES는 rules, SAVE_REWARD_CATEGORY는 category, SAVE_REWARD_MAPPING은 grade·categoryId·productId를 받습니다. 세 작업 모두 reason을 검사하고 변경 전후를 rewardSettingsHistory에 남깁니다. 지급 상품의 등급·카테고리가 일치해야 하며 비활성·품절 상품으로 임의 대체하지 않습니다. 마이그레이션 이후 상품 검색 순서에 따른 자동 fallback을 넣지 않습니다. 기존 회차 기준은 유지하고 신규 활성 등급에는 기존 순충전액도 인정합니다.'),
+ P('src/securityModel.js는 브라우저 입력 검증과 동의 옵션을 담당합니다. settings.security.strictConsents 기본값은 false입니다. true일 때 SIGNUP의 consentService·consentPrivacy·consentAge, CHARGE의 consents.payment, PURCHASE의 probability·rewards, SHIP의 deliveryConsent를 검사합니다. 제3자 제공 활성 시 thirdPartyConsent도 필요합니다.'),
+ P('SAVE_SECURITY_SETTINGS는 settings와 reason을 받아 업체 recipient, 목적 purpose, 항목 items, 기간 retention과 안내 문구를 검증합니다. 변경 전후는 securityHistory에, 배송 당시 정보는 thirdPartyConsentSnapshot에 저장합니다. 과거 거래 snapshot을 현재 설정으로 재작성하지 않습니다.'),
+ P('pointValidityText는 안내 문구입니다. 기본 무기한이며 문구 저장은 잔액 만료 기능이 아닙니다. 실서비스에서는 서버 동의 버전, 본인확인, 동의 철회, 보존·파기, 업체 계약을 별도로 구현하고 검수해야 합니다.')]),
+('대체 배송과 브라우저 방어 검증',[
+ H('대체 상품 상태와 재고'),
+ P('src/substitutionModel.js의 OFFER_SUBSTITUTION은 inventoryId·productId·reason, RESPOND_SUBSTITUTION은 id·accept·requestId를 받습니다. substitutions에 원상품 snapshot, 제안 내용, 회원, 상태와 응답 시각을 보존합니다. 다른 회원의 응답, 중복 수락, 배송 중 상품, 기한 경과와 재고 부족은 거절합니다.'),
+ P('수락은 deliveryProductId·deliveryProductName·deliveryImage와 substitutionId를 설정하고 대체 재고를 확보합니다. 원 productId·당첨 확률·value·전환 snapshot은 유지합니다. 배송 주문은 대체명을 쓰되 원거래 연결을 보존합니다. 재제안 수락 때 기존 대체 예약은 반환하며 환급·전환의 반환은 한 번만 실행합니다. 복원 시 재고를 다시 확보합니다.'),
+ P('대기 제안은 배송·환급·전환을 막습니다. PROCESS_DUE의 기한 처리에서는 제안을 종료하고 자동 전환을 진행하여 무기한 보류되지 않도록 합니다. 서버 구현 시 제안·재고·잔액·보관함 변경을 하나의 트랜잭션으로 묶어야 합니다.'),
+ H('검증 범위와 운영 전 작업'),
+ P('파일 서명과 이미지 형식, 위험 링크, CSV 수식 시작값, 중첩 객체의 비정상 값과 보호 필드를 검사합니다. 저장 실패는 성공으로 처리하지 않고 오래된 탭 상태의 쓰기를 제한합니다. 해당 검사는 브라우저 측 방어이며 서버 권한, 동시성 제어, 악성 파일 검사나 위변조 방지 보증이 아닙니다.'),
+ P('최종 자동 회귀 169개와 확장 상태 연동 하네스 24개가 통과했으며 SSR 7개 주요 화면과 빌드도 확인했습니다. 동적 등급과 명시 매핑, 엄격 동의, 품절 대체와 재고 반환, 기한 종료, 저장 실패·탭 충돌·잘못된 입력을 포함합니다. 실제 브라우저 화면 확인 결과는 별도 기록으로 관리합니다.'),
+ P('이번 보완에서 박스 등급 디자인과 개봉 애니메이션은 변경하지 않았습니다. 실제 인증·DB·PG·문자 발송·서버 예약 작업은 연결되지 않았습니다. 실제 서비스 보안 검수가 완료되었다고 해석하지 않으며 개발 비용과 납기는 연동 업체와 운영 정책을 확정한 뒤 산정합니다.')])]
 
 STYLE='''body{margin:0;background:#f5f6fa;color:#202432;font:16px/1.8 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}header{background:#10152a;color:white;padding:35px max(24px,calc((100vw - 1050px)/2))}header h1{margin:8px 0;font-size:32px}header a{color:#d9ceff}nav{display:flex;gap:12px;flex-wrap:wrap}nav a{padding:8px 14px;border:1px solid #757b90;border-radius:8px;text-decoration:none}main{max-width:1050px;margin:auto;padding:28px 22px 70px}section{background:white;padding:30px;margin:24px 0;border:1px solid #e2e5ec;border-radius:12px;scroll-margin-top:20px}h2{font-size:25px;margin:0 0 20px}h3{font-size:19px;margin-top:28px}p{margin:14px 0}li{margin:10px 0}table{width:100%;border-collapse:collapse;font-size:15px}th,td{border:1px solid #d9d9d9;padding:12px 15px;text-align:left;vertical-align:top}th{background:#ecedf4}td:first-child{width:26%;font-weight:600}.toc{columns:2}.toc a{color:#423080}input{box-sizing:border-box;width:100%;padding:13px;font:inherit;border:1px solid #b9bfd0;border-radius:8px}footer{color:#626979;text-align:center;padding:25px}code{overflow-wrap:anywhere}@media(max-width:600px){header h1{font-size:26px}section{padding:20px 15px}.toc{columns:1}table{font-size:13px}td,th{padding:9px}td:first-child{width:29%}main{padding:12px}}@media print{body{background:white;font-size:11pt}header{background:white;color:black;padding:0}header nav,input,.toc{display:none}main{padding:0;max-width:none}section{border:0;padding:0;break-before:page}section:first-of-type{break-before:auto}a{color:black}footer{display:none}}'''
 def make_html(slug,title,pages):
