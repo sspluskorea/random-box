@@ -1,24 +1,26 @@
 {
-  "release": "hardening-20261108",
-  "tests": 169,
-  "harness": 24,
-  "browser": {
-    "1024x768": [
-      "dynamic A-E reward settings displayed"
-    ],
-    "desktop": [
-      "explicit reward product mapping saved with reason and history",
-      "required consent setting saved",
-      "signup without mandatory consent rejected",
-      "substitution proposal form in member inventory"
-    ]
+  "release": "pay-points-opening-gauge-20261108",
+  "tests": 191,
+  "harness": 32,
+  "scope": "Browser-storage prototype. No real DB, PG, authentication or bank transfer.",
+  "rules": {
+    "defaultPointReturnPercent": 60,
+    "productOverrides": true,
+    "pointWithdrawal": false,
+    "payWithdrawal": "reserve on request; no second debit on approval; restore once on reject/cancel",
+    "gauge": "independent won-product-grade gauges; next-opening boost; A-to-E single-grade priority; percentage-point increase"
   },
+  "browser": [
+    "local Pay withdrawal request/cancel balance restoration",
+    "local grade gauge rules and odds preview",
+    "local default return rate settings"
+  ],
   "guides": {
-    "servicePages": 19,
-    "developerPages": 11,
-    "renderedPagesReviewed": 30
+    "servicePages": 14,
+    "developerPages": 9,
+    "renderedPagesReviewed": 23
   },
-  "scope": "Frontend prototype hardening; real DB/PG/auth/server scheduling not connected",
+  "publicScreenVerification": "deferred by user",
   "excludedChanges": [
     "box grade design",
     "opening animation"
