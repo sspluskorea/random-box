@@ -38,7 +38,8 @@ export function formatAdminValue(key,value,state={},menu='') {
  if(key==='memberId'){const m=state.members?.find(m=>m.id===value);return m?`${m.name} · ${value}`:String(value);}
  if(key==='boxId'){const b=state.boxes?.find(b=>String(b.id)===String(value));return b?`${b.name} · ${value}`:String(value);}
  if(key==='productId'){const p=state.products?.find(p=>String(p.id)===String(value));return p?`${p.name} · ${value}`:String(value);}
- if(key==='rewardCategory'||key==='category'&&['men','women','appliance'].includes(value))return ({men:'남성 명품',women:'여성 명품',appliance:'가전제품'})[value]||String(value);
+ if(['rewardCategory','category','categoryId'].includes(key)){const category=state.platform?.rewardCategories?.find(c=>c.id===value);if(category)return category.name;if(['men','women','appliance'].includes(value))return ({men:'남성 명품',women:'여성 명품',appliance:'가전제품'})[value];}
+ if(key==='type'&&['SAVE_REWARD_RULES','SAVE_REWARD_CATEGORY','SAVE_REWARD_MAPPING','PLATFORM_SETTINGS'].includes(value))return ({SAVE_REWARD_RULES:'등급·기준금액 변경',SAVE_REWARD_CATEGORY:'상품 종류 변경',SAVE_REWARD_MAPPING:'지급 상품 연결 변경',PLATFORM_SETTINGS:'보상·전환 설정 변경'})[value];
  if(key==='resetPolicy')return value==='full-gauge'?'해당 등급 게이지를 0으로 초기화':String(value);
  if(key==='rewardType')return ({points:'보너스 포인트',cash:'상품 전환 캐시',box:'특별 박스 이용권',product:'확정 상품',burning:'A등급 버닝 이용권'})[value]||String(value);
  if(typeof value==='boolean')return value?'예':'아니요';

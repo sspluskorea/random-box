@@ -1,3 +1,6 @@
+import {ensureSecuritySettings,securityGuard,securityAction,consentSnapshot} from './securityModel.js';
+import {rewardProductReferencesValid} from './rewardRulesModel.js';
+import {handleSubstitutionAction} from './substitutionModel.js';
 import {seedContent} from './seedContent.js';
 import {mergePolicyDefaults,policySnapshot,sellerFields,validPolicyRows} from './policyModel.js';
 import {ensurePlatform,afterPlatformAction,platformAction,platformPurchase,validProductOdds,cashValue} from './platformModel.js';
@@ -20,7 +23,7 @@ function migrateMemberNames(state){
   state.content={...state.content,passPlans:state.content?.passPlans||defaultPassPlans()};
   state.content.terms=mergePolicyDefaults(state.content.terms);
   for(const key of ['notices','terms','events'])state.content[key]=(state.content[key]||[]).map(row=>{const original=seedContent[key]?.find(r=>r.id===row.id);return original&&/미팅|시연/.test(JSON.stringify(row))?structuredClone(original):row;});
-  return ensurePlatform(state);
+  return ensureSecuritySettings(ensurePlatform(state));
 }
 function validTiers(tiers) {
   if(!Array.isArray(tiers)||!tiers.length||Math.abs(tiers.reduce((sum,t)=>sum+Number(t.probability),0)-100)>0.00001)return false;
@@ -31,22 +34,25 @@ function validTiers(tiers) {
 export function seedState() {
   const names=['네뷸라 스타터 박스','스트리트 컬렉션 박스','라이프 스타일 박스','크리에이터 드림 박스','시그니처 럭셔리 박스','갤럭시 마스터 박스'];
   const prices=[9900,19900,29900,49900,79900,99900];
-  return ensurePlatform({version:2,session:null,selectedBoxId:1,checkoutQuantity:1,wallet:{paid:100000,bonus:3000},
+  return ensureSecuritySettings(ensurePlatform({version:2,session:null,selectedBoxId:1,checkoutQuantity:1,wallet:{paid:100000,bonus:3000},
     settings:{...conversionDefaults,refundFeePercent:10,refundApprovalRequired:false,shippingFee:3000,chargeOptions:[10000,30000,50000,100000,300000],bonusPercent:3},
     boxes:names.map((name,i)=>({id:i+1,name,price:prices[i],category:['테크','패션','라이프','테크','프리미엄','프리미엄'][i],image:`assets/box-${['tech','fashion','life'][i%3]}.png`,status:'판매 중',left:200-i*27,total:500,color:['blue','pink','gold'][i%3],tiers:[{id:'S',label:'S',min:500000,max:1000000,probability:0.5},{id:'A',label:'A',min:100000,max:499999,probability:4.5},{id:'B',label:'B',min:30000,max:99999,probability:15},{id:'C',label:'C',min:1000,max:29999,probability:80}]})),
     products:[{id:'p1',name:'프리미엄 노트북',value:899000,stock:20,category:'테크'},{id:'p2',name:'무선 노이즈캔슬링 헤드폰',value:189000,stock:90,category:'테크'},{id:'p3',name:'프리미엄 스니커즈',value:129000,stock:70,category:'패션'},{id:'p4',name:'무드 테이블 램프',value:79000,stock:80,category:'라이프'},{id:'p5',name:'모바일 상품권 1만원',value:10000,stock:1000,category:'상품권'}],
     members:[{id:'demo-member',name:'박스러버',email:'demo@example.com',status:'정상',points:103000}],
     inventory:[{id:'sample-item',name:'무선 노이즈캔슬링 헤드폰',value:189000,purchasePrice:189000,paymentMethod:'card',memberId:'demo-member',grade:'A',status:'보관 중',boxId:1,image:'assets/box-tech.png',createdAt:stamp()}],
-    conversions:[],charges:[],openings:[],lastResults:[],refunds:[],orders:[],ledger:[],logs:[],content:{...structuredClone(seedContent),terms:mergePolicyDefaults(seedContent.terms),passPlans:defaultPassPlans(),coupons:[{id:'welcome',name:'웰컴 쿠폰',value:'10%',status:'사용 가능'}],inquiries:[],posts:[],trades:[],notifications:[],attendance:[],gifts:[],subscriptions:[]}});
+    conversions:[],charges:[],openings:[],lastResults:[],refunds:[],orders:[],ledger:[],logs:[],content:{...structuredClone(seedContent),terms:mergePolicyDefaults(seedContent.terms),passPlans:defaultPassPlans(),coupons:[{id:'welcome',name:'웰컴 쿠폰',value:'10%',status:'사용 가능'}],inquiries:[],posts:[],trades:[],notifications:[],attendance:[],gifts:[],subscriptions:[]}}));
 }
 export function loadState(storage) {try {const value=JSON.parse(storage.getItem(STORAGE_KEY));if(value?.version!==2||!value.wallet||!validMoney(value.wallet.paid)||!validMoney(value.wallet.bonus)||!['boxes','products','members','inventory','charges','openings','orders','refunds','ledger','logs'].every(k=>Array.isArray(value[k])))return seedState();return migrateMemberNames({...value,conversions:value.conversions||[],settings:{...conversionDefaults,...value.settings},content:{...structuredClone(seedContent),...value.content}})}catch{return seedState()}}
 const fail = error => ({ok:false,error});
 export function transition(previous, action, random=Math.random) {
-  let s=migrateMemberNames(structuredClone(previous)); const a=action; const memberId=s.session?.id||'demo-member';s.conversions||=[];s.settings={...conversionDefaults,...s.settings};
+  let s=migrateMemberNames(structuredClone(previous)); const a=structuredClone(action);if(['SIGNUP','LOGIN'].includes(a.type)){const allowed=['name','email','phone','referral','consentService','consentPrivacy','consentAge','consentMarketing'];a.fields=Object.fromEntries(Object.entries(a.fields||{}).filter(([k])=>allowed.includes(k)));} const memberId=s.session?.id||'demo-member';s.conversions||=[];s.settings={...conversionDefaults,...s.settings};
+  const validationError=securityGuard(s,a);if(validationError)return fail(validationError);
+  if(['REFUND','CONVERT_ITEM'].includes(a.type)&&(s.substitutions||[]).some(r=>r.inventoryId===a.inventoryId&&r.status==='제안 대기'))return fail('대체 상품 제안에 수락 또는 거절한 뒤 전환·환급을 진행해 주세요.');
+  if(a.type==='PROCESS_DUE'){const now=a.now==null?Date.now():new Date(a.now).getTime();for(const offer of s.substitutions||[]){const item=s.inventory.find(i=>i.id===offer.inventoryId);if(offer.status==='제안 대기'&&item?.expiresAt&&Date.parse(item.expiresAt)<=now){offer.status='기한 만료';offer.closedAt=new Date(now).toISOString();}}}
   const ledger=(type,amount)=>s.ledger.unshift(entry({type,amount,memberId}));
   if(a.requestId&&s.platform.requests.some(r=>r.id===a.requestId))return fail('이미 처리한 요청입니다.');
-  const finish=()=>{try{afterPlatformAction(s,a,previous);}catch(error){return fail(error.message);}if(!validMoney(s.wallet.paid)||!validMoney(s.wallet.bonus)||!validMoney(s.wallet.cash)||!Number.isSafeInteger(s.wallet.paid+s.wallet.bonus+s.wallet.cash))return fail('지갑 금액이 유효한 범위를 벗어났습니다.');s.members=s.members.map(m=>m.id===memberId?{...m,points:s.wallet.paid+s.wallet.bonus,cash:s.wallet.cash}:m);s.logs.unshift(entry({action:a.type,memberId}));return {ok:true,state:s}};
-  try{const handled=['PURCHASE','USE_BOX_TICKET'].includes(a.type)?platformPurchase(s,a,random):platformAction(s,a,random);if(handled?.error)return fail(handled.error);if(handled?.handled){if(['PURCHASE','USE_BOX_TICKET'].includes(a.type))s.orders[0].policySnapshot=policySnapshot(s);return finish();}}catch(error){return fail(error.message);}
+  const finish=()=>{for(const item of s.inventory){const old=previous.inventory.find(i=>i.id===item.id);if(old?.deliveryProductId&&!old.substitutionStockReleased&&['캐시 전환','포인트 전환','자동 포인트 전환','환불 완료'].includes(item.status)){const product=s.products.find(p=>p.id===old.deliveryProductId);if(product)product.stock+=1;item.substitutionStockReleased=true;}}if(a.type==='CHARGE'&&s.charges[0])s.charges[0].consents={payment:a.consents?.payment===true,recordedAt:stamp()};if(a.type==='SHIP'&&s.orders[0])s.orders[0].thirdPartyConsentSnapshot={accepted:a.address?.thirdPartyConsent===true,deliveryAccepted:a.address?.deliveryConsent===true,recordedAt:stamp(),notice:consentSnapshot(s)};try{afterPlatformAction(s,a,previous);}catch(error){return fail(error.message);}if(!validMoney(s.wallet.paid)||!validMoney(s.wallet.bonus)||!validMoney(s.wallet.cash)||!Number.isSafeInteger(s.wallet.paid+s.wallet.bonus+s.wallet.cash))return fail('지갑 금액이 유효한 범위를 벗어났습니다.');s.members=s.members.map(m=>m.id===memberId?{...m,points:s.wallet.paid+s.wallet.bonus,cash:s.wallet.cash}:m);s.logs.unshift(entry({action:a.type,memberId}));return {ok:true,state:s}};
+  try{const security=securityAction(s,a);if(security?.error)return fail(security.error);if(security?.handled)return finish();const substitution=handleSubstitutionAction(s,a);if(substitution?.ok===false)return fail(substitution.error);if(substitution?.ok)return finish();const handled=['PURCHASE','USE_BOX_TICKET'].includes(a.type)?platformPurchase(s,a,random):platformAction(s,a,random);if(handled?.error)return fail(handled.error);if(handled?.handled){if(['PURCHASE','USE_BOX_TICKET'].includes(a.type))s.orders[0].policySnapshot=policySnapshot(s);return finish();}}catch(error){return fail(error.message);}
   if(['EXCHANGE_REQUEST','UPDATE_EXCHANGE','ACCEPT_EXCHANGE','PAY_EXCHANGE'].includes(a.type)){
     s.content.exchangeRequests||=[];
     if(a.type==='EXCHANGE_REQUEST'){
@@ -110,6 +116,7 @@ export function transition(previous, action, random=Math.random) {
     const order=s.orders.find(o=>o.id===a.id),patch=a.patch||{};
     if(!order?.inventoryIds?.length||order.address==='디지털 개봉')return fail('상품 배송 주문만 변경할 수 있습니다.');
     const statuses=['배송 요청','상품 준비 중','배송 준비','배송 중','배송 완료','배송 취소'];
+    if(['배송 중','배송 완료'].includes(patch.status)&&(!(patch.carrier||order.carrier)?.trim()||!(patch.tracking||order.tracking)?.trim()))return fail('배송 처리에는 택배사와 송장 번호가 필요합니다.');
     if(patch.status&&!statuses.includes(patch.status))return fail('배송 상태를 확인해 주세요.');
     if(['배송 완료','배송 취소'].includes(order.status)&&patch.status&&patch.status!==order.status)return fail('종료된 배송 주문의 상태를 되돌릴 수 없습니다.');
     if(patch.status==='배송 취소'&&order.status==='배송 중')return fail('배송 중인 상품은 바로 취소할 수 없습니다.');
@@ -129,6 +136,7 @@ export function transition(previous, action, random=Math.random) {
     if(!['boxes','products','members','inventory','orders','logs','content','selectedBoxId','checkoutQuantity'].includes(a.key))return fail('전용 거래 기능으로 변경해 주세요.');
     if(a.key==='boxes'&&(!Array.isArray(a.value)||a.value.some(b=>!validMoney(b.price)||Number(b.price)<=0||!validMoney(b.left)||(b.productOdds?.length?!validProductOdds(s,b):!validTiers(b.tiers)))))return fail('박스 가격·재고·상품별 확률 합계를 확인해 주세요.');
     if(a.key==='products'&&(!Array.isArray(a.value)||a.value.some(p=>!validMoney(p.value)||Number(p.value)<=0||!validMoney(p.stock)||(p.grade&&!['A','B','C','D','E'].includes(p.grade))||(p.cashAmount!==''&&p.cashAmount!=null&&!validMoney(p.cashAmount)))))return fail('상품 등급·금액·재고·전환액을 확인해 주세요.');
+    if(a.key==='products'&&!rewardProductReferencesValid(s,a.value))return fail('확정보상에 지정된 상품은 지급 상품 지정을 해제한 뒤 삭제하거나 등급·카테고리를 변경해 주세요.');
     if(a.key==='products'&&s.boxes.some(b=>b.productOdds?.some(o=>!a.value.some(p=>p.id===o.productId&&!p.rewardOnly))))return fail('박스 확률에 연결된 상품은 구성에서 제외한 뒤 삭제해 주세요.');
     if(a.key==='boxes')for(const box of a.value){const old=s.boxes.find(b=>String(b.id)===String(box.id));if(JSON.stringify(old?.productOdds||old?.tiers)!==JSON.stringify(box.productOdds||box.tiers))s.platform.probabilityHistory.unshift(entry({boxId:box.id,boxName:box.name,actor:'관리자',before:structuredClone(old?.productOdds||old?.tiers||[]),after:structuredClone(box.productOdds||box.tiers||[])}));}
     s[a.key]=structuredClone(a.value);return finish();
@@ -188,9 +196,9 @@ export function transition(previous, action, random=Math.random) {
     const recent=s.conversions.filter(c=>c.memberId===memberId&&c.restoredAt&&new Date(c.restoredAt).getTime()>Date.now()-86400000).length;
     if(recent>=Number(s.settings.restoreDailyLimit))return fail('최근 24시간 상품 복구 횟수를 초과했습니다.');
     if(s.wallet.bonus<record.amount)return fail('전환 포인트가 사용되어 복구할 수 없습니다.');
-    s.wallet.bonus-=record.amount;record.status='복구 완료';record.restoredAt=stamp();item.status='보관 중';delete item.conversionId;ledger('전환 상품 복구',-record.amount);return finish();
+    if(item.deliveryProductId&&item.substitutionStockReleased){const product=s.products.find(p=>p.id===item.deliveryProductId);if(!product||product.stock<1||['비활성','판매 중지','중지','삭제'].includes(product.status))return fail('대체 배송 상품 재고가 없어 복원할 수 없습니다.');product.stock-=1;item.substitutionStockReleased=false;}s.wallet.bonus-=record.amount;record.status='복구 완료';record.restoredAt=stamp();item.status='보관 중';delete item.conversionId;ledger('전환 상품 복구',-record.amount);return finish();
   }
-  if(a.type==='SHIP'){const ids=new Set(a.ids||[]),items=s.inventory.filter(i=>ids.has(i.id));if(!items.length||items.length!==ids.size||items.some(i=>i.status!=='보관 중'||(i.expiresAt&&Date.parse(i.expiresAt)<=Date.now())||(i.memberId&&i.memberId!==memberId)))return fail('본인 보관 상품을 선택해 주세요.');items.forEach(i=>i.status='배송 요청');s.orders.unshift(entry({items:items.map(i=>i.name),inventoryIds:items.map(i=>i.id),total:Number(s.settings.freeShippingThreshold)>0&&items.reduce((sum,i)=>sum+Number(i.value),0)>=Number(s.settings.freeShippingThreshold)?0:Number(s.settings.shippingFee),status:'배송 요청',address:a.address||'기본 배송지',memberId,policySnapshot:policySnapshot(s)}));return finish()}
+  if(a.type==='SHIP'){const ids=new Set(a.ids||[]),items=s.inventory.filter(i=>ids.has(i.id));if(!items.length||items.length!==ids.size||items.some(i=>i.status!=='보관 중'||(i.expiresAt&&Date.parse(i.expiresAt)<=Date.now())||(i.memberId&&i.memberId!==memberId)))return fail('본인 보관 상품을 선택해 주세요.');items.forEach(i=>i.status='배송 요청');s.orders.unshift(entry({items:items.map(i=>i.deliveryProductName||i.name),deliveryProductIds:items.map(i=>i.deliveryProductId||i.productId||null),inventoryIds:items.map(i=>i.id),total:Number(s.settings.freeShippingThreshold)>0&&items.reduce((sum,i)=>sum+Number(i.value),0)>=Number(s.settings.freeShippingThreshold)?0:Number(s.settings.shippingFee),status:'배송 요청',address:a.address||'기본 배송지',memberId,policySnapshot:policySnapshot(s)}));return finish()}
   if(a.type==='APPROVE_REFUND'){
     const refund=s.refunds.find(r=>r.id===a.id);if(!refund||refund.status!=='승인 대기')return fail('이미 처리된 환불입니다.');
     const targetId=refund.memberId||'demo-member',member=s.members.find(m=>m.id===targetId),item=s.inventory.find(i=>i.id===refund.inventoryId);

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import {inspectStorage,commitBrowserAction} from './browserStateStore.js';
 import AdminConsole from './AdminConsole.jsx';
 import CustomerFlows from './CustomerFlows.jsx';
 import { loadState, transition, STORAGE_KEY } from './demoStore.js';
@@ -173,7 +174,7 @@ function SearchModal({ open, onClose, go, boxes=boxProducts }) {
   return <div className="modal-backdrop" onMouseDown={onClose}><div className="search-modal" onMouseDown={(e)=>e.stopPropagation()}><div className="search-box"><MagnifyingGlass/><input autoFocus value={query} onChange={(e)=>setQuery(e.target.value)} placeholder="박스 이름 또는 카테고리 검색"/><button onClick={onClose}><X/></button></div>{query?<div className="search-results"><span>검색 결과 {results.length}건</span>{results.map((b)=><button key={b.id} onClick={()=>{go("boxes");onClose();}}><img src={b.image} alt=""/><div><b>{b.name}</b><small>{b.category} · {won(b.price)}</small></div><ArrowRight/></button>)}</div>:<div className="search-suggestions"><span>추천 검색어</span>{["마스터","테크","패션","라이프","프리미엄"].map((v)=><button key={v} onClick={()=>setQuery(v)}>{v}</button>)}</div>}</div></div>;
 }
 
-function Toast({ message }) { return message?<div className="toast"><Check/><span>{message}</span></div>:null; }
+function Toast({ message,kind }) { return message?<div className={"toast "+(kind==='error'?'toast-error':'')} role={kind==='error'?'alert':'status'}>{kind==='error'?<X/>:<Check/>}<span>{message}</span></div>:null; }
 
 function Footer({ go,state }) {
   const seller=state.settings.seller||{};
@@ -185,11 +186,12 @@ export function App() {
   const [state,setState]=useState(()=>loadState(localStorage));
   const stateRef=useRef(state);
   const [message,setMessage]=useState('');
+  const [messageKind,setMessageKind]=useState('info');
   const [menuOpen,setMenuOpen]=useState(false);
   const [searchOpen,setSearchOpen]=useState(false);
-  const toast=(text)=>{setMessage(text);clearTimeout(window.__moduToast);window.__moduToast=setTimeout(()=>setMessage(''),3200)};
-  const dispatch=(action)=>{const result=transition(stateRef.current,action);if(result.ok){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(result.state))}catch{const error='저장 공간이 부족합니다. 등록할 이미지 수나 크기를 줄여 주세요.';toast(error);return {ok:false,error};}stateRef.current=result.state;setState(result.state);}else toast(result.error);return result};
-  useEffect(()=>{const sync=e=>{if(e.key===STORAGE_KEY){const next=loadState(localStorage);stateRef.current=next;setState(next)}};window.addEventListener('storage',sync);return()=>window.removeEventListener('storage',sync)},[]);
+  const toast=(text,kind='info')=>{setMessage(text);setMessageKind(kind);clearTimeout(window.__moduToast);window.__moduToast=setTimeout(()=>setMessage(''),3200)};
+  const dispatch=(action)=>{const result=commitBrowserAction(localStorage,STORAGE_KEY,stateRef.current,action,transition,loadState);if(result.ok){stateRef.current=result.state;setState(result.state);}else{if(result.refreshState){stateRef.current=result.refreshState;setState(result.refreshState);}toast(result.error,'error');}return result};
+  useEffect(()=>{const sync=e=>{if(e.key===STORAGE_KEY||e.key===null){const inspected=inspectStorage(localStorage,STORAGE_KEY,loadState);if(!inspected.ok){toast(inspected.error,'error');return;}if(inspected.state){stateRef.current=inspected.state;setState(inspected.state);}else toast('저장된 데이터가 다른 탭에서 제거되었습니다. 새로고침 후 확인해 주세요.');}};window.addEventListener('storage',sync);return()=>window.removeEventListener('storage',sync)},[]);
   useEffect(()=>{const process=()=>{if(document.visibilityState!=='hidden')dispatch({type:'PROCESS_DUE'})};process();window.addEventListener('focus',process);const timer=setInterval(process,60000);return()=>{window.removeEventListener('focus',process);clearInterval(timer)}},[]);
   const openBox=box=>{dispatch({type:'UPDATE',key:'selectedBoxId',value:box.id});dispatch({type:'UPDATE',key:'checkoutQuantity',value:1});go('checkout')};
   const isAdmin=route.startsWith('admin');
@@ -215,6 +217,6 @@ export function App() {
     {!isAdmin&&<Footer go={go} state={state}/>}
     <MobileMenu open={menuOpen} onClose={()=>setMenuOpen(false)} go={go}/>
     <SearchModal boxes={state.boxes} open={searchOpen} onClose={()=>setSearchOpen(false)} go={go}/>
-    <Toast message={message}/>
+    <Toast message={message} kind={messageKind}/>
   </div>;
 }

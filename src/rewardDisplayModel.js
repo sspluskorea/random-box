@@ -1,6 +1,7 @@
 // The current reward keeps its saved threshold. Later rewards use the latest setting.
 // One confirmed reward resets the entire grade gauge; stock is checked at payout.
 export function availableRewardCount(progress, nextThreshold) {
+  if (progress?.enabled === false) return 0;
   const amount = Number(progress?.progress);
   const current = Number(progress?.threshold);
   const next = Number(nextThreshold ?? current);

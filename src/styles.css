@@ -575,3 +575,5 @@ img { display: block; max-width: 100%; }
   .admin-section-head { display:block; }
   .admin-section-head > div:last-child { margin-top:14px; }
 }
+
+.toast.toast-error{border-color:#b45b72;background:#351d2c;color:#ffe1e9}.toast.toast-error svg{color:#ff9db4}
