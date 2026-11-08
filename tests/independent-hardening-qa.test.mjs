@@ -32,7 +32,7 @@ test('독립 강화: 동적 보상 매핑의 등급과 카테고리가 다르면
  s.platform.rewardMappings.B.women='reward-B-men';reject(s,{type:'CLAIM_PITY',grade:'B',category:'women'});
 });
 test('독립 강화: 비활성 카테고리는 새 매핑과 수령 불가이며 기존 지급 이력은 보존',()=>{
- let s=seedState();s.platform.campaigns=[];s=apply(s,{type:'CHARGE',amount:10000000});s=apply(s,{type:'CLAIM_PITY',grade:'B',category:'men'});const old=structuredClone(s.platform.pityClaims);
+ let s=seedState();s.platform.campaigns=[];s=apply(s,{type:'CHARGE',amount:10000000});s.platform.pityClaims.push({id:'legacy',grade:'B',memberId:'demo-member',threshold:10000000,status:'수령 완료'});const old=structuredClone(s.platform.pityClaims);
  s=apply(s,{type:'SAVE_REWARD_CATEGORY',category:{id:'men',name:'남성 명품',enabled:false},reason:'일시 중단'});reject(s,{type:'SAVE_REWARD_MAPPING',grade:'B',categoryId:'men',productId:'reward-B-men',reason:'중단된 분류'});s=apply(s,{type:'CHARGE',amount:10000000});reject(s,{type:'CLAIM_PITY',grade:'B',category:'men'});assert.deepEqual(s.platform.pityClaims,old);
 });
 test('독립 강화: 대체 제안 수락 재전송은 재고를 한 번만 차감하고 원거래를 보존',()=>{
@@ -47,8 +47,8 @@ test('독립 강화: 기한 지난 대체 제안은 자동 점검 전에도 수�
  const s=withOffer(),offer=s.substitutions[0];s.inventory.find(i=>i.id===offer.inventoryId).expiresAt=new Date(Date.now()-1000).toISOString();reject(s,{type:'RESPOND_SUBSTITUTION',id:offer.id,accept:true});
 });
 test('독립 강화: 대체 수락 후 캐시 전환은 대체 예약 재고를 반환하고 원전환액을 지급',()=>{
- let s=withOffer();const offer=s.substitutions[0],stock=s.products.find(p=>p.id===offer.productId).stock,item=s.inventory.find(i=>i.id===offer.inventoryId),expected=item.cashAmountSnapshot;
- s=apply(s,{type:'RESPOND_SUBSTITUTION',id:offer.id,accept:true});s=apply(s,{type:'CASH_CONVERT',inventoryId:item.id});assert.equal(s.products.find(p=>p.id===offer.productId).stock,stock);assert.equal(s.wallet.cash,expected);reject(s,{type:'CASH_CONVERT',inventoryId:item.id});
+ let s=withOffer();const offer=s.substitutions[0],stock=s.products.find(p=>p.id===offer.productId).stock,item=s.inventory.find(i=>i.id===offer.inventoryId),expected=item.returnPointsSnapshot,bonus=s.wallet.bonus,paid=s.wallet.paid;
+ s=apply(s,{type:'RESPOND_SUBSTITUTION',id:offer.id,accept:true});s=apply(s,{type:'CASH_CONVERT',inventoryId:item.id});assert.equal(s.products.find(p=>p.id===offer.productId).stock,stock);assert.equal(s.wallet.bonus,bonus+expected);assert.equal(s.wallet.paid,paid);assert.equal(s.wallet.cash,0);reject(s,{type:'CASH_CONVERT',inventoryId:item.id});
 });
 test('독립 강화: 일반 목록수정으로 재고상품 상태와 주문거래를 직접 덮어쓸 수 없음',()=>{
  const s=seedState();for(const key of ['inventory','orders','logs'])reject(s,{type:'UPDATE',key,value:[]});
@@ -78,6 +78,6 @@ test('독립 강화: 새 관리자 설정·대체 제안·동적 보상 화면�
   for(const [Component,extra]of [[rewards.default,{mode:'pity'}],[rewards.default,{mode:'events'}],[rewards.default,{mode:'conversion'}],[rewards.default,{mode:'cash'}],[rewards.RewardConfiguration,{}],[safety.default,{}],[substitute.default,{}]]){
    const html=renderToStaticMarkup(createElement(Component,{state,dispatch:()=>({ok:false,error:'SSR only'}),...extra}));assert.ok(html.length>100);
   }
-  const html=renderToStaticMarkup(createElement(rewards.RewardConfiguration,{state,dispatch:()=>({ok:true})}));assert.ok(html.includes('여행 용품'));
+  const html=renderToStaticMarkup(createElement(rewards.RewardConfiguration,{state,dispatch:()=>({ok:true})}));assert.ok(html.includes('게이지'));assert.ok(!html.includes('여행 용품'));
  }finally{await server.close();}
 });

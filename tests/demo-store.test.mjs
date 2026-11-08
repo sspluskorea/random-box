@@ -6,8 +6,8 @@ test('원결제 모의 환불은 유료 포인트를 중복 지급하지 않음'
   for(const refundApprovalRequired of [false,true]){
     const seed=seedState();seed.settings.refundApprovalRequired=refundApprovalRequired;
     let state=apply(seed,{type:'REFUND',inventoryId:'sample-item',refundMethod:'original'});
-    if(refundApprovalRequired)state=apply(state,{type:'APPROVE_REFUND',id:state.refunds[0].id});
-    assert.deepEqual(state.wallet,seed.wallet);assert.equal(state.refunds[0].refundMethod,'original');assert.equal(state.refunds[0].status,'환불 완료');
+    assert.equal(state.refunds.length,0);
+    assert.equal(state.wallet.paid,seed.wallet.paid);assert.equal(state.wallet.bonus,seed.wallet.bonus+113400);assert.equal(state.inventory[0].status,'포인트 전환');
   }
 });
 test('무료배송 기준금액은 배송 주문 금액에 반영',()=>{
@@ -78,16 +78,9 @@ test('판매중지 박스는 결제 불가', () => {
   assert.equal(transition(state, { type: 'PURCHASE', boxId: 1, quantity: 1, method: 'card' }).ok, false);
 });
 
-test('환불은 수수료를 계산하며 같은 상품·승인을 중복 처리하지 않음', () => {
-  const before = apply(seedState(), { type: 'SETTINGS', patch: { refundFeePercent: 15 } });
-  const after = apply(before, { type: 'REFUND', inventoryId: 'sample-item' });
-  assert.equal(after.refunds[0].gross, 189000);
-  assert.equal(after.refunds[0].fee, 28350);
-  assert.equal(after.refunds[0].net, 160650);
-  assert.equal(after.wallet.paid, before.wallet.paid + 160650);
-  assert.equal(after.inventory[0].status, '환불 완료');
-  assert.equal(transition(after, { type: 'REFUND', inventoryId: 'sample-item' }).ok, false);
-  assert.equal(transition(after, { type: 'APPROVE_REFUND', id: after.refunds[0].id }).ok, false);
+test('구 상품환불 경로도 상품기준 60% 포인트만 한 번 지급',()=>{
+ const before=apply(seedState(),{type:'SETTINGS',patch:{refundFeePercent:15}}),after=apply(before,{type:'REFUND',inventoryId:'sample-item'});
+ assert.equal(after.conversions[0].amount,113400);assert.equal(after.wallet.paid,before.wallet.paid);assert.equal(after.wallet.bonus,before.wallet.bonus+113400);assert.equal(after.inventory[0].status,'포인트 전환');assert.equal(transition(after,{type:'REFUND',inventoryId:'sample-item'}).ok,false);
 });
 
 test('배송 신청한 상품은 다시 배송·환불 불가', () => {
@@ -177,14 +170,14 @@ test('저장된 상태 복원과 손상 데이터 초기화', () => {
 
 test('승인형 환불은 승인 전 잔액 동결, 승인 후 한 번만 반영', () => {
   const before = apply(seedState(), { type: 'SETTINGS', patch: { refundApprovalRequired: true } });
-  const pending = apply(before, { type: 'REFUND', inventoryId: 'sample-item' });
+  const pending=structuredClone(before);pending.inventory[0].status='환불 대기';pending.refunds.push({id:'legacy-refund',inventoryId:'sample-item',memberId:'demo-member',status:'승인 대기',net:9000,paidNet:8000,bonusNet:1000,refundMethod:'points'});
   assert.equal(pending.refunds[0].status, '승인 대기');
   assert.equal(pending.inventory[0].status, '환불 대기');
   assert.deepEqual(pending.wallet, before.wallet);
   assert.equal(transition(pending, { type: 'REFUND', inventoryId: 'sample-item' }).ok, false);
   assert.equal(transition(pending, { type: 'SHIP', ids: ['sample-item'] }).ok, false);
   const after = apply(pending, { type: 'APPROVE_REFUND', id: pending.refunds[0].id });
-  assert.equal(after.wallet.paid, before.wallet.paid + pending.refunds[0].net);
+  assert.equal(after.wallet.paid,before.wallet.paid);assert.equal(after.wallet.bonus,before.wallet.bonus+pending.refunds[0].net);
   assert.equal(after.inventory[0].status, '환불 완료');
   assert.equal(transition(after, { type: 'APPROVE_REFUND', id: after.refunds[0].id }).ok, false);
   assert.equal(transition(after, { type: 'REJECT_REFUND', id: after.refunds[0].id }).ok, false);
@@ -192,7 +185,7 @@ test('승인형 환불은 승인 전 잔액 동결, 승인 후 한 번만 반영
 
 test('환불 반려는 상품을 보관 상태로 복구하고 잔액을 지급하지 않음', () => {
   const before = apply(seedState(), { type: 'SETTINGS', patch: { refundApprovalRequired: true } });
-  const pending = apply(before, { type: 'REFUND', inventoryId: 'sample-item' });
+  const pending=structuredClone(before);pending.inventory[0].status='환불 대기';pending.refunds.push({id:'legacy-refund',inventoryId:'sample-item',memberId:'demo-member',status:'승인 대기',net:9000,paidNet:8000,bonusNet:1000,refundMethod:'points'});
   const after = apply(pending, { type: 'REJECT_REFUND', id: pending.refunds[0].id, reason: '요청 철회' });
   assert.equal(after.refunds[0].status, '반려');
   assert.equal(after.refunds[0].reason, '요청 철회');
@@ -206,7 +199,7 @@ test('환불 반려는 상품을 보관 상태로 복구하고 잔액을 지급�
 test('관리자 회원 포인트 조정은 원장·잔액에 반영되며 초과차감 금지', () => {
   const before = seedState();
   const after = apply(before, { type: 'ADJUST_POINTS', memberId: 'demo-member', amount: 1000, reason: '고객 보상' });
-  assert.equal(after.wallet.paid, before.wallet.paid + 1000);
+  assert.equal(after.wallet.paid,before.wallet.paid);assert.equal(after.wallet.bonus,before.wallet.bonus+1000);
   assert.equal(after.members[0].points, before.members[0].points + 1000);
   assert.equal(after.ledger[0].reason, '고객 보상');
   assert.equal(transition(after, { type: 'ADJUST_POINTS', memberId: 'demo-member', amount: -1000000 }).ok, false);
@@ -226,12 +219,12 @@ test('다른 회원 포인트 조정은 시연회원 지갑을 변경하지 않�
 
 test('개봉 기록은 당시 확률표를 보존하고 이후 설정 변경과 분리', () => {
   const opened = apply(seedState(), { type: 'PURCHASE', boxId: 1, quantity: 1, method: 'card' });
-  assert.deepEqual(opened.openings[0].probabilitySnapshot, opened.boxes[0].tiers);
+  assert.equal(opened.openings[0].probabilitySnapshot.reduce((n,r)=>n+r.probability,0),100);assert.equal(opened.openings[0].probabilitySnapshot.find(r=>r.productId==='p5').probability,80);
   assert.equal(opened.openings[0].probability, 80);
   const boxes = structuredClone(opened.boxes);
   boxes[0].tiers[0].probability = 1;
   boxes[0].tiers[3].probability = 79.5;
   const updated = apply(opened, { type: 'UPDATE', key: 'boxes', value: boxes });
   assert.equal(updated.boxes[0].tiers[3].probability, 79.5);
-  assert.equal(updated.openings[0].probabilitySnapshot[3].probability, 80);
+  assert.equal(updated.openings[0].probabilitySnapshot.find(r=>r.productId==='p5').probability, 80);
 });

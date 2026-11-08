@@ -17,7 +17,7 @@ test('복수 상품 구매 주문은 포함된 상품에만 연결되고 주문 
  assert.equal(matchesRelatedProduct({id:'unrelated',items:order.items,boxId:7},'orders','p1',s),false);
 });
 test('천장 확정보상은 구매·개봉내역을 만들지 않고 배송 신청만 배송 주문으로 연결',()=>{
- let s=seedState();s.platform.campaigns=[];s=apply(s,{type:'CHARGE',amount:10000000});s=apply(s,{type:'CLAIM_PITY',grade:'B',category:'men'});const item=s.inventory.find(i=>i.source==='천장 보상');
+ let s=seedState();s.platform.campaigns=[];s=apply(s,{type:'CHARGE',amount:10000000});const item={...s.inventory[0],id:'legacy-reward',productId:'reward-B-men',source:'천장 보상',grade:'B',autoConvertEligible:false};s.inventory.push(item);
  assert.equal(s.openings.filter(r=>matchesRelatedProduct(r,'openings',item.productId,s)).length,0);assert.equal(s.orders.filter(r=>matchesRelatedProduct(r,'orders',item.productId,s)).length,0);
  s=apply(s,{type:'SHIP',ids:[item.id]});assert.equal(matchesRelatedProduct(s.orders[0],'orders',item.productId,s),true);assert.equal(adminOrderKind(s.orders[0]),'상품 배송');
 });

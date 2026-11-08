@@ -18,12 +18,12 @@ test('당첨상품 가치가 구매가보다 높아도 원결제 환불은 구�
   const s=apply(seedState(),{type:'PURCHASE',boxId:1,quantity:1,method:'card'},()=>0);
   const item=s.lastResults[0];assert.equal(item.value,899000);assert.equal(item.purchasePrice,9900);
   const refunded=apply(s,{type:'REFUND',inventoryId:item.id,refundMethod:'original'});
-  assert.equal(refunded.refunds[0].gross,9900);assert.equal(refunded.refunds[0].net,8910);assert.deepEqual(refunded.wallet,s.wallet);
+  assert.equal(refunded.conversions[0].amount,539400);assert.equal(refunded.wallet.paid,s.wallet.paid);assert.equal(refunded.wallet.bonus,s.wallet.bonus+539400);
 });
 test('보너스로 산 상품 환급은 유상 포인트를 만들지 않음',()=>{
   const s=seedState();s.wallet={paid:0,bonus:100000};const purchased=apply(s,{type:'PURCHASE',boxId:1,quantity:1,method:'wallet'});
-  assert.equal(transition(purchased,{type:'REFUND',inventoryId:purchased.lastResults[0].id,refundMethod:'original'}).ok,false);
-  const refunded=apply(purchased,{type:'REFUND',inventoryId:purchased.lastResults[0].id});assert.equal(refunded.wallet.paid,0);assert.equal(refunded.wallet.bonus,99010);
+  assert.equal(transition(purchased,{type:'REFUND',inventoryId:purchased.lastResults[0].id,refundMethod:'original'}).state.wallet.paid,0);
+  const refunded=apply(purchased,{type:'REFUND',inventoryId:purchased.lastResults[0].id});assert.equal(refunded.wallet.paid,0);assert.equal(refunded.wallet.bonus,96100);
 });
 test('상품 전환과 복구는 무상 잔액과 상품 상태를 함께 되돌림',()=>{
   const s=seedState(),converted=apply(s,{type:'CONVERT_ITEM',inventoryId:'sample-item'});
