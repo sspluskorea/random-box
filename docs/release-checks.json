@@ -1,22 +1,31 @@
 {
-  "release": "reward-ux-20261107",
-  "tests": 133,
-  "harness": 14,
+  "release": "hardening-20261108",
+  "tests": 169,
+  "harness": 24,
   "browser": {
-    "1366x768": [
-      "reward overview"
-    ],
-    "1280x720": [
-      "member selection and reward form",
-      "reward settings"
-    ],
     "1024x768": [
-      "24 administrator menu first screens",
-      "product registration dialog",
-      "product row details expansion and grade filter",
-      "product win-history and sales-history links with product ID filters",
-      "clear product filter"
+      "dynamic A-E reward settings displayed"
+    ],
+    "desktop": [
+      "explicit reward product mapping saved with reason and history",
+      "required consent setting saved",
+      "signup without mandatory consent rejected",
+      "substitution proposal form in member inventory"
     ]
   },
-  "scope": "Frontend prototype; real DB/PG/auth not connected"
+  "guides": {
+    "servicePages": 19,
+    "developerPages": 11,
+    "renderedPagesReviewed": 30
+  },
+  "scope": "Frontend prototype hardening; real DB/PG/auth/server scheduling not connected",
+  "excludedChanges": [
+    "box grade design",
+    "opening animation"
+  ],
+  "dependencies": {
+    "vite": "7.3.7",
+    "source-map-js": "1.2.2",
+    "knownVulnerabilities": 0
+  }
 }
