@@ -94,7 +94,7 @@ service=[
 dev=[
 ('인수 범위와 실행',[
  P('이 저장소는 사용자 화면과 관리자 기능을 연결한 React·Vite 프로토타입입니다. 브라우저 안에서 거래와 보상 상태를 변경하며, 실제 서버·DB·PG·본인인증은 연결하지 않았습니다. 현재 화면을 기능 명세의 기준으로 사용하되 서버 권한과 거래 원장은 별도로 구현해야 합니다.'),
- T(['항목','위치 또는 방법'],[['사용자','https://sspluskorea.github.io/random-box/#home'],['관리자','https://sspluskorea.github.io/random-box/#admin'],['소스','https://github.com/sspluskorea/random-box'],['설치와 실행','Node.js 22 이상 / npm ci / npm run dev -- --host 127.0.0.1 --port 4173'],['검증','npm test / npm run test:harness / npm run build:pages'],['게시 방식','main 브랜치의 docs 폴더를 GitHub Pages로 게시합니다.'],['안내서 원본','scripts/build-guides.py → public/guides → 빌드 시 docs/guides로 복사합니다.']]),
+ T(['항목','위치 또는 방법'],[['사용자','https://sspluskorea.github.io/random-box/#home'],['관리자','https://sspluskorea.github.io/random-box/#admin'],['소스','https://github.com/sspluskorea/random-box'],['설치와 실행','Node.js 22.12 이상 / npm ci / npm run dev -- --host 127.0.0.1 --port 4173'],['검증','npm test / npm run test:harness / npm run build:pages'],['게시 방식','main 브랜치의 docs 폴더를 GitHub Pages로 게시합니다.'],['안내서 원본','scripts/build-guides.py → public/guides → 빌드 시 docs/guides로 복사합니다.']]),
  P('가입·로그인은 빈 입력으로도 진행되도록 의도적으로 허용했습니다. 공개 관리자 경로에도 인증 장벽이 없습니다. 이를 실서비스 인증 설계로 재사용하지 않습니다. 카드번호·실제 비밀번호를 수집하는 결제 폼을 추가하지 말고 PG와 인증 제공자의 화면을 연결합니다.'),
  P('기존 docs의 조사·기획 자료는 참고 이력입니다. 현재 기능과 정책은 이 문서, 소스, 테스트를 기준으로 확인합니다. 브라우저 저장 내용을 서버에 자동 이전하는 기능은 없습니다.')]),
 ('화면과 코드 연결',[
@@ -277,7 +277,7 @@ def replace_current(value):
    '실제 대체 상품 제안과 동의 수집은 후속 개발 범위입니다.':'품절 대체 제안과 회원의 수락·거절은 구현되어 있으며 실제 외부 배송은 연결되지 않았습니다.',
    '품절 대체상품 동의,':'실제 대체 배송의 책임과 제공업체 계약,',
    '필수 동의 강제는 시연을 위해 완화했습니다.':'필수 동의는 기본 체험 설정에서 완화되며 관리자 옵션을 켜면 화면과 거래 처리에서 검사합니다.',
-   '단일 JS 번들이 약 600KB라 분할 권고 경고가 있습니다.':'단일 JS 번들이 500KB를 넘어 분할 권고 경고가 있습니다.'
+   '단일 JS 번들이 약 600KB라 분할 권고 경고가 있습니다.':'단일 JS 번들이 약 640KB라 분할 권고 경고가 있습니다.'
   }
   for a,b in pairs.items():value=value.replace(a,b)
   return value
@@ -317,6 +317,7 @@ dev += [
  P('SAVE_REWARD_RULES는 rules, SAVE_REWARD_CATEGORY는 category, SAVE_REWARD_MAPPING은 grade·categoryId·productId를 받습니다. 세 작업 모두 reason을 검사하고 변경 전후를 rewardSettingsHistory에 남깁니다. 지급 상품의 등급·카테고리가 일치해야 하며 비활성·품절 상품으로 임의 대체하지 않습니다. 마이그레이션 이후 상품 검색 순서에 따른 자동 fallback을 넣지 않습니다. 기존 회차 기준은 유지하고 신규 활성 등급에는 기존 순충전액도 인정합니다.'),
  P('src/securityModel.js는 브라우저 입력 검증과 동의 옵션을 담당합니다. settings.security.strictConsents 기본값은 false입니다. true일 때 SIGNUP의 consentService·consentPrivacy·consentAge, CHARGE의 consents.payment, PURCHASE의 probability·rewards, SHIP의 deliveryConsent를 검사합니다. 제3자 제공 활성 시 thirdPartyConsent도 필요합니다.'),
  P('SAVE_SECURITY_SETTINGS는 settings와 reason을 받아 업체 recipient, 목적 purpose, 항목 items, 기간 retention과 안내 문구를 검증합니다. 변경 전후는 securityHistory에, 배송 당시 정보는 thirdPartyConsentSnapshot에 저장합니다. 과거 거래 snapshot을 현재 설정으로 재작성하지 않습니다.'),
+ P('의존성은 잠금파일을 함께 전달합니다. Vite 7.3.7과 source-map-js 1.2.2로 갱신 후 pnpm audit에서 알려진 취약점 0건을 확인했습니다. 이는 실제 운영 보안 검수 완료를 의미하지 않습니다.'),
  P('pointValidityText는 안내 문구입니다. 기본 무기한이며 문구 저장은 잔액 만료 기능이 아닙니다. 실서비스에서는 서버 동의 버전, 본인확인, 동의 철회, 보존·파기, 업체 계약을 별도로 구현하고 검수해야 합니다.')]),
 ('대체 배송과 브라우저 방어 검증',[
  H('대체 상품 상태와 재고'),
