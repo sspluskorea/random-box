@@ -1,7 +1,7 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
-export default defineConfig({
+export default defineConfig(({command})=>({
   base: './',
   build: {
     outDir: "dist/client",
@@ -16,5 +16,5 @@ export default defineConfig({
       clientFiles: ["./src/main.jsx"],
     },
   },
-  plugins: [react()],
-});
+  plugins: [react(),{name:"development-csp-preamble",transformIndexHtml(html){return command==='serve'?html.replace(/<meta http-equiv="Content-Security-Policy"[^>]+>\s*/g,''):html;}}],
+}));
